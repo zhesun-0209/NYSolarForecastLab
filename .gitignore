@@ -4,9 +4,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
 build/
 develop-eggs/
 dist/
@@ -23,9 +20,11 @@ wheels/
 .installed.cfg
 *.egg
 
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
 
 # IDE
 .vscode/
@@ -34,36 +33,40 @@ wheels/
 *.swo
 *~
 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Results and outputs
+results/
+checkpoints/
+*.pth
+*.pkl
+*.h5
+*.csv
+!data/*.csv
+!examples/data/*.csv
+
 # OS
 .DS_Store
 Thumbs.db
 
-# Project specific - Results and outputs
-results/
-outputs/
-logs/
-*.xlsx
-*.csv
-!data/Project1140.csv
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.pdf
-
-# Temporary files
-temp/
-tmp/
+# Logs
 *.log
-*.txt
-!requirements.txt
+debug.log
 
-# Model checkpoints
-*.pt
-*.pth
-*.h5
-*.pkl
-*.joblib
-
-# Documentation build
+# Documentation
 docs/_build/
+docs/.doctrees/

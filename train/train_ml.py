@@ -9,7 +9,7 @@ warnings.filterwarnings('ignore')
 os.environ['PYTHONWARNINGS'] = 'ignore'
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.linear_model import LinearRegression
-from eval.metrics_utils import calculate_metrics, calculate_mse, calculate_daily_avg_metrics
+from eval import calculate_metrics, calculate_mse, calculate_daily_avg_metrics
 from utils.gpu_utils import get_gpu_memory_used
 from models.ml_models import train_rf, train_xgb, train_lgbm, train_linear
 
@@ -42,10 +42,18 @@ def train_ml_model(
         """
         Simple feature flattening, maintain feature consistency between DL and ML models
         """
+        # Handle NWP-only mode: if Xh has zero features, only use Xf
         h = Xh.reshape(Xh.shape[0], -1)
         if Xf is not None:
             f = Xf.reshape(Xf.shape[0], -1)
-            return np.concatenate([h, f], axis=1)
+            if h.shape[1] > 0:
+                return np.concatenate([h, f], axis=1)
+            else:
+                # NWP-only mode: only use forecast features
+                return f
+        # If no forecast features, must have historical features
+        if h.shape[1] == 0:
+            raise ValueError("Both historical and forecast features are empty. Cannot train model.")
         return h
 
     X_train_flat = flatten(Xh_train, Xf_train)
@@ -129,10 +137,24 @@ def train_ml_model(
     inference_time = time.time() - inference_start
 
     # Inverse transform using scaler_target
+    # Default to enabled unless explicitly disabled
+    inverse_transform = config.get('inverse_transform', True)
     fh = int(config.get('future_hours', 24))  # Default to 24 if not specified
-    if scaler_target is not None:
-        y_matrix = scaler_target.inverse_transform(y_test_flat).reshape(-1, fh)
-        p_matrix = scaler_target.inverse_transform(preds_flat.reshape(-1, 1)).reshape(-1, fh)
+    
+    if scaler_target is not None and inverse_transform:
+        try:
+            y_matrix = scaler_target.inverse_transform(y_test_flat).reshape(-1, fh)
+            p_matrix = scaler_target.inverse_transform(preds_flat.reshape(-1, 1)).reshape(-1, fh)
+            
+            # 验证结果
+            if np.any(np.isnan(p_matrix)) or np.any(np.isinf(p_matrix)):
+                print("  [Warning] NaN or Inf detected after inverse transform, using original values")
+                y_matrix = y_test_flat.reshape(-1, fh)
+                p_matrix = preds_flat.reshape(-1, fh)
+        except Exception as e:
+            print(f"  [Warning] Inverse transform failed: {e}, using original values")
+            y_matrix = y_test_flat.reshape(-1, fh)
+            p_matrix = preds_flat.reshape(-1, fh)
     else:
         y_matrix = y_test_flat.reshape(-1, fh)
         p_matrix = preds_flat.reshape(-1, fh)
@@ -144,16 +166,18 @@ def train_ml_model(
     # Important: metrics calculated based on inverse-transformed values (capacity factor percentage, 0-100)
     
     # Calculate metrics using daily average method (recommended for day-ahead forecasting)
-    # This calculates RMSE for each day, then averages across days
+    # This calculates RMSE/MAE for each day, then averages across days
+    # All metrics (MAE, RMSE, R2, NRMSE) are calculated consistently
     daily_metrics = calculate_daily_avg_metrics(y_matrix, p_matrix)
     
-    # Extract metrics
+    # Extract metrics (all from unified calculate_daily_avg_metrics)
     mse = daily_metrics['rmse'] ** 2  # Convert RMSE back to MSE for compatibility
     rmse = daily_metrics['rmse']
     mae = daily_metrics['mae']
+    nrmse = daily_metrics['nrmse']
     
     # Also extract 24h-ahead predictions for saving to CSV (for visualization)
-    from eval.prediction_utils import extract_one_hour_ahead_predictions
+    from eval import extract_one_hour_ahead_predictions
     final_preds_24h, final_gt_24h = extract_one_hour_ahead_predictions(p_matrix, y_matrix)
 
     # Get GPU memory usage
@@ -172,7 +196,7 @@ def train_ml_model(
         'mse':            mse,
         'rmse':           rmse,  # Daily averaged RMSE
         'mae':            mae,   # Daily averaged MAE
-        'nrmse':          rmse / (np.max(y_matrix) - np.min(y_matrix)) if np.max(y_matrix) != np.min(y_matrix) else np.nan,
+        'nrmse':          nrmse,  # Daily averaged NRMSE (from unified calculation)
         'r_square':       daily_metrics['r2'],
         'r2':             daily_metrics['r2'],
         'smape':          np.nan,  # Not calculated for daily avg

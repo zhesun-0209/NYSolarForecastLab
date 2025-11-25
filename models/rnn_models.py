@@ -34,10 +34,12 @@ class RNNBase(nn.Module):
     def forward(self, hist: torch.Tensor, fcst: torch.Tensor = None) -> torch.Tensor:                                                                                   
         seqs = []
 
-        if self.hist_proj is not None and hist.shape[-1] > 0:
+        # Handle historical features: only use if they exist and have non-zero dimension
+        if self.hist_proj is not None and hist.shape[-1] > 0 and hist.shape[1] > 0:
             h_proj = self.hist_proj(hist)
             seqs.append(h_proj)
 
+        # Handle forecast features: only use if they exist and have non-zero dimension
         if self.fcst_proj is not None and fcst is not None and fcst.shape[-1] > 0:
             f_proj = self.fcst_proj(fcst)
             seqs.append(f_proj)

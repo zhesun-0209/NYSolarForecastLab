@@ -59,7 +59,7 @@ os.environ['LIGHTGBM_VERBOSE'] = '0'
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config_manager import PlantConfigManager
+from config.config_manager import PlantConfigManager
 
 
 def set_global_seed(seed=42):
@@ -280,6 +280,9 @@ def run_single_experiment(config: Dict, df: pd.DataFrame, use_sliding_windows: b
     """
     import time
     
+    # Start timing (includes data processing, same as main experiments)
+    start_time = time.time()
+    
     # Set random seed for reproducibility
     random_seed = config.get('random_seed', 42)
     set_global_seed(random_seed)
@@ -350,16 +353,14 @@ def run_single_experiment(config: Dict, df: pd.DataFrame, use_sliding_windows: b
         scalers = (scaler_hist, scaler_fcst, scaler_target)
         
         # Train model
-        # Note: Use train_time_sec from metrics for consistency
-        # The internal timing excludes initialization overhead (DataLoader creation, model init, etc.)
         if config['model'] in ['LSTM', 'GRU', 'Transformer', 'TCN']:
             model, metrics = train_dl_model(config, train_data, val_data, test_data, scalers)
         else:
             model, metrics = train_ml_model(config, train_data, val_data, test_data, scalers)
         
-        # Use train_time_sec from metrics for consistency
-        # Fallback to 0 if not available (for ML models that don't provide it)
-        training_time = metrics.get('train_time_sec', 0.0)
+        # Calculate total time including data processing (same as main experiments)
+        # This matches the timing in experiments.py: training_time = time.time() - start_time
+        total_time = time.time() - start_time
         
         # Return result with predictions
         return {
@@ -369,7 +370,7 @@ def run_single_experiment(config: Dict, df: pd.DataFrame, use_sliding_windows: b
             'rmse': metrics.get('rmse', 0.0),
             'r2': metrics.get('r2', 0.0),
             'nrmse': metrics.get('nrmse', 0.0),
-            'train_time': training_time,
+            'train_time': round(total_time, 2),  # Total time including data processing (same as main experiments)
             'test_samples': metrics.get('samples_count', 0),
             'status': 'SUCCESS',
             'y_test_pred': metrics.get('predictions_all', None),  # Full predictions matrix

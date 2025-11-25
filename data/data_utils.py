@@ -1,8 +1,17 @@
-# ======== data/data_utils.py ========
+#!/usr/bin/env python3
+"""
+Data preprocessing and windowing utilities
+
+Provides functions for:
+- Loading and preprocessing PV plant data
+- Creating daily and sliding windows
+- Feature engineering and normalization
+- Data splitting for train/val/test
+"""
 
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
+from utils.normalization import UnifiedScaler
 
 # Based on actual weather features in data, simplified into two categories
 # Solar irradiance features - most important features
@@ -174,24 +183,33 @@ def preprocess_features(df: pd.DataFrame, config: dict):
     for feat in available_hist_feats:
         df_clean[feat] = df_clean[feat].fillna(0.0)
 
-    scaler_hist = MinMaxScaler()
+    # Get normalization method (default to minmax for backward compatibility)
+    normalization_method = config.get('normalization_method', 'minmax')
+    
+    # Normalize historical features
+    scaler_hist = UnifiedScaler(method=normalization_method)
     if available_hist_feats:
+        # UnifiedScaler will automatically handle zero variance features, but check and warn first
         for feat in available_hist_feats:
-            if df_clean[feat].std() == 0:
-                print(f"Feature {feat} has zero std, adding small noise to avoid division by zero")
-                df_clean[feat] += np.random.normal(0, 1e-8, len(df_clean))
-        df_clean[available_hist_feats] = scaler_hist.fit_transform(df_clean[available_hist_feats])
+            if df_clean[feat].std() < 1e-8:
+                print(f"  [Warning] Feature {feat} has zero std, will be handled by UnifiedScaler")
+        df_clean[available_hist_feats] = scaler_hist.fit_transform(df_clean[available_hist_feats].values)
 
-    scaler_fcst = MinMaxScaler()
+    # Normalize forecast features
+    scaler_fcst = UnifiedScaler(method=normalization_method)
     if available_fcst_feats:
         for feat in available_fcst_feats:
-            if df_clean[feat].std() == 0:
-                print(f"Feature {feat} has zero std, adding small noise to avoid division by zero")
-                df_clean[feat] += np.random.normal(0, 1e-8, len(df_clean))
-        df_clean[available_fcst_feats] = scaler_fcst.fit_transform(df_clean[available_fcst_feats])
+            if df_clean[feat].std() < 1e-8:
+                print(f"  [Warning] Feature {feat} has zero std, will be handled by UnifiedScaler")
+        df_clean[available_fcst_feats] = scaler_fcst.fit_transform(df_clean[available_fcst_feats].values)
 
-    scaler_target = MinMaxScaler()
-    df_clean[TARGET_COL] = scaler_target.fit_transform(df_clean[[TARGET_COL]]).flatten()
+    # Normalize target variable
+    scaler_target = UnifiedScaler(method=normalization_method)
+    # Check if target variable has zero variance
+    target_values = df_clean[[TARGET_COL]].values
+    if np.std(target_values) < 1e-8:
+        print(f"  [Warning] Target variable has zero std, will be handled by UnifiedScaler")
+    df_clean[TARGET_COL] = scaler_target.fit_transform(target_values).flatten()
 
     df_clean = df_clean.sort_values('Datetime').reset_index(drop=True)
 
@@ -234,29 +252,40 @@ def create_daily_windows(df, future_hours, hist_feats, fcst_feats, no_hist_power
     # Calculate how many days we need for lookback
     past_days = past_hours // 24  # 24h=1day, 72h=3days
     
+    # For NWP-only mode with past_hours=0, we don't need historical days
+    if no_hist_power and past_hours == 0:
+        past_days = 0
+    
     # Create samples: use past N days to predict next day
     for i in range(len(unique_dates) - 1):
-        # Need at least past_days of history before current day
-        if i < past_days:
+        # Need at least past_days of history before current day (unless NWP-only with past_hours=0)
+        if not (no_hist_power and past_hours == 0) and i < past_days:
             continue
         
         # Get historical days (past_days before prediction day)
-        hist_dates = unique_dates[i - past_days + 1 : i + 1]
-        next_date = unique_dates[i + 1]
-        
-        # Collect historical data
-        hist_data_list = []
-        valid_hist = True
-        for hist_date in hist_dates:
-            hist_day = df[df['date'] == hist_date].copy()
-            if len(hist_day) != 24:
-                valid_hist = False
-                break
-            hist_day = hist_day.sort_values('Hour')
-            hist_data_list.append(hist_day)
-        
-        if not valid_hist:
-            continue
+        if no_hist_power and past_hours == 0:
+            # NWP-only mode: no historical data needed
+            hist_dates = []
+            next_date = unique_dates[i + 1]
+            hist_data_list = []
+            valid_hist = True
+        else:
+            hist_dates = unique_dates[i - past_days + 1 : i + 1]
+            next_date = unique_dates[i + 1]
+            
+            # Collect historical data
+            hist_data_list = []
+            valid_hist = True
+            for hist_date in hist_dates:
+                hist_day = df[df['date'] == hist_date].copy()
+                if len(hist_day) != 24:
+                    valid_hist = False
+                    break
+                hist_day = hist_day.sort_values('Hour')
+                hist_data_list.append(hist_day)
+            
+            if not valid_hist:
+                continue
         
         # Get forecast day (next day)
         next_day = df[df['date'] == next_date].copy()
@@ -265,7 +294,7 @@ def create_daily_windows(df, future_hours, hist_feats, fcst_feats, no_hist_power
         next_day = next_day.sort_values('Hour')
         
         # Historical features: concatenate all historical days
-        if hist_feats and not no_hist_power:
+        if hist_feats and not no_hist_power and past_hours > 0:
             hist_arrays = []
             for hist_day in hist_data_list:
                 if hist_day[hist_feats].isnull().any().any():
@@ -277,9 +306,13 @@ def create_daily_windows(df, future_hours, hist_feats, fcst_feats, no_hist_power
                 continue
             
             X_hist = np.vstack(hist_arrays)  # (past_hours, n_hist)
+        elif no_hist_power and past_hours == 0:
+            # NWP-only mode with no historical data: create empty historical features
+            # Use shape (1, 0) to avoid RNN sequence length error
+            X_hist = np.zeros((1, 0))  # (1, 0) - minimal shape for compatibility
         else:
-            # For NWP-only: create dummy historical features
-            X_hist = np.zeros((past_hours, 1 if not hist_feats else len(hist_feats)))
+            # For other cases: create dummy historical features
+            X_hist = np.zeros((max(1, past_hours), 1 if not hist_feats else len(hist_feats)))
         
         # Forecast features: Next day's 24 hours (NWP for day to predict)
         if fcst_feats:

@@ -21,7 +21,7 @@ from train.train_utils import (
     get_optimizer, get_scheduler,
     count_parameters
 )
-from eval.metrics_utils import calculate_metrics, calculate_mse, calculate_daily_avg_metrics
+from eval import calculate_metrics, calculate_mse, calculate_daily_avg_metrics
 from utils.gpu_utils import get_gpu_memory_used
 from models.transformer import Transformer
 from models.rnn_models import LSTM, GRU
@@ -222,9 +222,34 @@ def train_dl_model(
     y_true_arr = y_te  # already numpy
 
     # Inverse transform using scaler_target
-    if scaler_target is not None:
-        p_inv = scaler_target.inverse_transform(preds_arr.reshape(-1, 1)).flatten()
-        y_inv = scaler_target.inverse_transform(y_true_arr.reshape(-1, 1)).flatten()
+    # Default to enabled unless explicitly disabled
+    inverse_transform = config.get('inverse_transform', True)
+    
+    if scaler_target is not None and inverse_transform:
+        try:
+            # 确保数据形状正确
+            if preds_arr.ndim == 1:
+                preds_arr_2d = preds_arr.reshape(-1, 1)
+            else:
+                preds_arr_2d = preds_arr.reshape(-1, 1)
+            
+            if y_true_arr.ndim == 1:
+                y_true_arr_2d = y_true_arr.reshape(-1, 1)
+            else:
+                y_true_arr_2d = y_true_arr.reshape(-1, 1)
+            
+            p_inv = scaler_target.inverse_transform(preds_arr_2d).flatten()
+            y_inv = scaler_target.inverse_transform(y_true_arr_2d).flatten()
+            
+            # 验证逆变换结果（检查是否有异常值）
+            if np.any(np.isnan(p_inv)) or np.any(np.isinf(p_inv)):
+                print("  [Warning] NaN or Inf detected after inverse transform, using original values")
+                p_inv = preds_arr.flatten()
+                y_inv = y_true_arr.flatten()
+        except Exception as e:
+            print(f"  [Warning] Inverse transform failed: {e}, using original values")
+            p_inv = preds_arr.flatten()
+            y_inv = y_true_arr.flatten()
     else:
         p_inv = preds_arr.flatten()
         y_inv = y_true_arr.flatten()
@@ -239,16 +264,18 @@ def train_dl_model(
     y_inv_matrix = y_inv.reshape(y_te.shape)
     
     # Calculate metrics using daily average method (recommended for day-ahead forecasting)
-    # This calculates RMSE for each day, then averages across days
+    # This calculates RMSE/MAE for each day, then averages across days
+    # All metrics (MAE, RMSE, R2, NRMSE) are calculated consistently
     daily_metrics = calculate_daily_avg_metrics(y_inv_matrix, p_inv_matrix)
     
-    # Extract metrics
+    # Extract metrics (all from unified calculate_daily_avg_metrics)
     raw_mse = daily_metrics['rmse'] ** 2  # Convert RMSE back to MSE for compatibility
     raw_rmse = daily_metrics['rmse']
     raw_mae = daily_metrics['mae']
+    raw_nrmse = daily_metrics['nrmse']
     
     # Also extract 24h-ahead predictions for saving to CSV (for visualization)
-    from eval.prediction_utils import extract_one_hour_ahead_predictions
+    from eval import extract_one_hour_ahead_predictions
     final_preds_24h, final_gt_24h = extract_one_hour_ahead_predictions(p_inv_matrix, y_inv_matrix)
 
     # Decide whether to save model based on config
@@ -269,7 +296,7 @@ def train_dl_model(
         'mse': raw_mse,
         'rmse': raw_rmse,  # Daily averaged RMSE
         'mae': raw_mae,    # Daily averaged MAE
-        'nrmse': raw_rmse / (np.max(y_inv_matrix) - np.min(y_inv_matrix)) if np.max(y_inv_matrix) != np.min(y_inv_matrix) else np.nan,
+        'nrmse': raw_nrmse,  # Daily averaged NRMSE (from unified calculation)
         'r_square': daily_metrics['r2'],
         'r2': daily_metrics['r2'],
         'smape': np.nan,  # Not calculated for daily avg

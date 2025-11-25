@@ -28,6 +28,7 @@ from sensitivity_analysis.common_utils import (
     load_and_filter_data
 )
 from data.data_utils import preprocess_features, create_daily_windows, split_data
+from eval import calculate_daily_avg_metrics
 
 
 def run_seasonal_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity_analysis/results', local_output_dir: str = None):
@@ -130,36 +131,35 @@ def run_seasonal_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity
                     'samples': test_samples
                 })
                 
-                # Group test results by season
-                test_df = pd.DataFrame({
-                    'y_true': y_test.flatten(),
-                    'y_pred': y_pred.flatten(),
-                    'date': [d for d in test_dates for _ in range(24)]  # Repeat each date 24 times
-                })
-                test_df['month'] = pd.to_datetime(test_df['date']).dt.month
-                test_df['season'] = test_df['month'].apply(get_season)
+                # Group test results by season using daily average method (same as main experiments)
+                # y_test and y_pred are shape (n_days, 24)
+                n_days = y_test.shape[0]
                 
-                # Compute metrics for each season
+                # Create date array for each day
+                test_dates_array = pd.to_datetime(test_dates)
+                test_months = test_dates_array.month
+                test_seasons = [get_season(m) for m in test_months]
+                
+                # Compute metrics for each season using daily average method
                 for season in ['Spring', 'Summer', 'Fall', 'Winter']:
-                    season_data = test_df[test_df['season'] == season]
+                    # Find days belonging to this season
+                    season_day_indices = [i for i, s in enumerate(test_seasons) if s == season]
                     
-                    if len(season_data) == 0:
+                    if len(season_day_indices) == 0:
                         continue
                     
-                    y_true_season = season_data['y_true'].values
-                    y_pred_season = season_data['y_pred'].values
+                    # Extract season data: (n_season_days, 24)
+                    y_true_season = y_test[season_day_indices]
+                    y_pred_season = y_pred[season_day_indices]
                     
-                    # Compute metrics
-                    mae = np.mean(np.abs(y_true_season - y_pred_season))
-                    rmse = np.sqrt(np.mean((y_true_season - y_pred_season) ** 2))
+                    # Use calculate_daily_avg_metrics (same as main experiments)
+                    # All metrics (MAE, RMSE, R2, NRMSE) are calculated consistently
+                    season_metrics = calculate_daily_avg_metrics(y_true_season, y_pred_season)
                     
-                    # R2
-                    ss_res = np.sum((y_true_season - y_pred_season) ** 2)
-                    ss_tot = np.sum((y_true_season - np.mean(y_true_season)) ** 2)
-                    r2 = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
-                    
-                    # NRMSE
-                    nrmse = compute_nrmse(y_true_season, y_pred_season)
+                    mae = season_metrics.get('mae', np.nan)
+                    rmse = season_metrics.get('rmse', np.nan)
+                    r2 = season_metrics.get('r2', np.nan)
+                    nrmse = season_metrics.get('nrmse', np.nan)  # From unified calculation
                     
                     # Store result
                     all_results.append({
@@ -171,7 +171,7 @@ def run_seasonal_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity
                         'r2': r2,
                         'nrmse': nrmse,
                         'train_time': result.get('train_time', 0),
-                        'samples': len(season_data)
+                        'samples': len(season_day_indices) * 24  # Total hourly samples
                     })
                 
             except Exception as e:
