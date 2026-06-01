@@ -45,21 +45,31 @@ LOW_WEATHER_FEATURES = MEDIUM_WEATHER_FEATURES + ['snow_depth', 'dew_point_2m', 
 # Update ALL_WEATHER_FEATURES to include all 11 meteorological variables
 ALL_WEATHER_FEATURES = LOW_WEATHER_FEATURES
 
-# Select features based on weather feature category
 def get_weather_features_by_category(weather_category):
     """
     Return weather features based on category
     
     Args:
-        weather_category: 'none', 'medium_weather', 'solar_irradiance_only', 'high_weather', 'medium_weather', 'low_weather'
+        weather_category: 'none', 'solar_irradiance_only', 'high_weather',
+            'medium_weather', or 'low_weather'. A few short aliases are accepted
+            for backward compatibility with early config files.
     
     Returns:
         list: List of selected weather features
     """
+    aliases = {
+        'irradiance': 'solar_irradiance_only',
+        'solar': 'solar_irradiance_only',
+        'high': 'high_weather',
+        'medium': 'medium_weather',
+        'low': 'low_weather',
+        'all': 'low_weather',
+        'all_weather': 'low_weather',
+    }
+    weather_category = aliases.get(weather_category, weather_category)
+
     if weather_category == 'none':
         return []  # Return no weather features
-    elif weather_category == 'medium_weather':
-        return MEDIUM_WEATHER_FEATURES
     elif weather_category == 'solar_irradiance_only':
         return SOLAR_IRRADIANCE_FEATURES
     elif weather_category == 'high_weather':
@@ -83,7 +93,12 @@ TARGET_COL = 'Capacity Factor'
 # Statistical feature functions removed
 
 def load_raw_data(path: str) -> pd.DataFrame:
+    """Load a plant CSV file and add a normalized Datetime column."""
     df = pd.read_csv(path)
+    required_columns = ['Year', 'Month', 'Day', 'Hour', TARGET_COL]
+    missing = [col for col in required_columns if col not in df.columns]
+    if missing:
+        raise ValueError(f"Missing required columns in {path}: {missing}")
     df['Datetime'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour']])
     return df
 
@@ -239,6 +254,9 @@ def create_daily_windows(df, future_hours, hist_feats, fcst_feats, no_hist_power
         dates: (n_days,) - next day's date
     """
     TARGET_COL = 'Capacity Factor'
+    if future_hours != 24:
+        raise ValueError("create_daily_windows currently supports a 24-hour day-ahead horizon only.")
+    df = df.copy()
     
     # Group by date
     df['date'] = pd.to_datetime(df[['Year', 'Month', 'Day']])

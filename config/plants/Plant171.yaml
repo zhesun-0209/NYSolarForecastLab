@@ -1,4 +1,4 @@
-data_path: data\Project1140.csv
+data_path: data/Project171.csv
 dl_params:
   high:
     batch_size: 64
@@ -51,15 +51,15 @@ ml_params:
     random_state: 42
     verbosity: -1
 normalization_method: minmax
-plant_id: '1140'
-plant_name: Project 1140
+plant_id: '171'
+plant_name: Project 171
 results_base_dir: results
 save_options:
   save_excel_results: false
   save_model: false
   save_predictions: false
   save_training_log: false
-start_date: '2020-01-01'
+start_date: '2022-01-01'
 test_ratio: 0.1
 train_ratio: 0.8
 val_ratio: 0.1

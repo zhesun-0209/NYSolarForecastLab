@@ -8,7 +8,7 @@ Provides unified interface and error handling
 
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from typing import Optional, Literal
+from typing import Literal
 
 
 class UnifiedScaler:
@@ -44,7 +44,6 @@ class UnifiedScaler:
                            f"Supported methods: 'minmax', 'standard'")
         
         self.is_fitted = False
-        self.eps = 1e-8  # Small constant to prevent division by zero
     
     def fit(self, X: np.ndarray):
         """
@@ -56,20 +55,16 @@ class UnifiedScaler:
         Returns:
             self: Returns self for method chaining
         """
-        X = np.asarray(X)
-        
-        # Check for zero variance features
+        X = np.asarray(X, dtype=float)
+
         if X.ndim == 1:
             X = X.reshape(-1, 1)
-        
-        # Handle zero variance features
-        for i in range(X.shape[1]):
-            if np.std(X[:, i]) < self.eps:
-                # Add small noise to avoid division by zero
-                noise = np.random.normal(0, self.eps, len(X))
-                X[:, i] += noise
-                print(f"  [Warning] Feature {i} has zero std, added small noise to avoid division by zero")
-        
+
+        if X.ndim != 2:
+            raise ValueError("UnifiedScaler expects a 1D or 2D numeric array.")
+
+        # sklearn scalers already handle constant columns. Avoid adding noise:
+        # reproducibility is more important than suppressing harmless zeros.
         self.scaler.fit(X)
         self.is_fitted = True
         return self
@@ -143,4 +138,3 @@ class UnifiedScaler:
     def __repr__(self):
         """String representation"""
         return f"UnifiedScaler(method='{self.method}', fitted={self.is_fitted})"
-

@@ -80,12 +80,11 @@ def set_global_seed(seed=42):
     
     # PyTorch random seed
     torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    
-    # Ensure PyTorch deterministic behavior
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
     
     # Set environment variable
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -868,4 +867,3 @@ def run_experiments_for_plants(plant_configs: List[Dict], models: List[str],
                 continue
     
     return all_results
-

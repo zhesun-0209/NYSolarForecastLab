@@ -4,11 +4,11 @@
 # Copy this file for each plant and modify the following parameters
 
 # Plant Basic Information
-plant_id: "1140"  # Plant ID (required)
-plant_name: "Project 1140"  # Plant name (optional)
+plant_id: "171"  # Plant ID (required)
+plant_name: "Project 171"  # Plant name (optional)
 
 # Data File Path (required)
-data_path: "data/Project1140.csv"
+data_path: "data/Project171.csv"
 
 # Data Time Range (modify according to actual data)
 start_date: "2022-01-01"
@@ -27,7 +27,7 @@ val_ratio: 0.1    # 10% of data
 test_ratio: 0.1   # 10% of data
 
 # Weather Feature Category (adjust based on data availability)
-weather_category: "medium_weather"  # Options: "medium_weather", "irradiance", "temperature", "none"
+weather_category: "medium_weather"  # Options: "solar_irradiance_only", "high_weather", "medium_weather", "low_weather", "none"
 
 # Support Ideal NWP (set based on data availability)
 has_ideal_nwp: true  # Set to true if actual weather data is available

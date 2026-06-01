@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+title: "NYSolarForecastLab"
+message: "If you use this repository, please cite the associated Transportation Research Part A paper."
+type: software
+authors:
+  - family-names: Bao
+    given-names: Zhaoyao
+  - family-names: Sun
+    given-names: Zhe
+  - family-names: Jiang
+    given-names: Yishuo
+  - family-names: Xie
+    given-names: Chi
+  - family-names: Sun
+    given-names: Lijun
+  - family-names: Gao
+    given-names: H. Oliver
+repository-code: "https://github.com/zhesun-0209/NYSolarForecastLab"
+license: MIT
+preferred-citation:
+  type: article
+  title: "Toward better integration of solar energy in transportation systems: machine learning benchmarks for day-ahead photovoltaic power forecasting"
+  authors:
+    - family-names: Bao
+      given-names: Zhaoyao
+    - family-names: Sun
+      given-names: Zhe
+    - family-names: Jiang
+      given-names: Yishuo
+    - family-names: Xie
+      given-names: Chi
+    - family-names: Sun
+      given-names: Lijun
+    - family-names: Gao
+      given-names: H. Oliver
+  journal: "Transportation Research Part A: Policy and Practice"
+  volume: "210"
+  start: "105040"
+  year: 2026
+  doi: "10.1016/j.tra.2026.105040"
+  url: "https://www.sciencedirect.com/science/article/pii/S0965856426001813"

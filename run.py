@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unified entry point for PV-Forecasting experiments
+Unified entry point for NYSolarForecastLab experiments.
 
 All experiment functionality is consolidated in this single script.
 """
@@ -24,7 +24,7 @@ from experiments import (
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
-        description='PV-Forecasting: Multi-Plant Solar Power Prediction System',
+        description='NYSolarForecastLab: day-ahead PV forecasting benchmarks',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -32,7 +32,7 @@ Examples:
   python run.py config
 
   # Run single plant experiments
-  python run.py forecast --plant-id 1140
+  python run.py forecast --plant-id 171 --test-mode --test-model Linear
 
   # Run multi-plant batch
   python run.py multi_plant --max-plants 25
@@ -54,9 +54,9 @@ Examples:
     
     # Forecast task
     forecast_parser = subparsers.add_parser('forecast', help='Run forecasting experiments')
-    forecast_parser.add_argument('--plant-id', type=str, default='1140', help='Plant ID')
+    forecast_parser.add_argument('--plant-id', type=str, default='171', help='Plant ID')
     forecast_parser.add_argument('--output-dir', type=str, help='Output directory')
-    forecast_parser.add_argument('--test-mode', action='store_true', help='Test mode: only run LSTM model')
+    forecast_parser.add_argument('--test-mode', action='store_true', help='Test mode: only run the selected test model')
     forecast_parser.add_argument('--test-model', type=str, default='LSTM', help='Model to use in test mode (default: LSTM)')
     
     # Multi-plant task
@@ -134,4 +134,3 @@ Examples:
 
 if __name__ == '__main__':
     main()
-

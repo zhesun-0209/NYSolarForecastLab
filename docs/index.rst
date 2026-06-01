@@ -1,7 +1,8 @@
-PV-Forecasting Documentation
-============================
+NYSolarForecastLab Documentation
+================================
 
-Welcome to the PV-Forecasting documentation!
+Documentation for the day-ahead PV forecasting benchmark repository associated
+with the Transportation Research Part A paper.
 
 .. toctree::
    :maxdepth: 2
@@ -9,8 +10,9 @@ Welcome to the PV-Forecasting documentation!
 
    installation
    quickstart
+   data
+   reproducibility
    api/index
-   tutorials/index
    contributing
 
 Indices and tables
@@ -19,4 +21,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

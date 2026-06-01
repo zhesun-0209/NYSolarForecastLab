@@ -47,6 +47,7 @@ class TestDataUtils:
         }
         df = pd.DataFrame(data)
         df['Datetime'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour']])
+        df['Capacity_Factor_hist'] = df['Capacity Factor'].shift(1).fillna(0.0)
         
         config = {
             'use_pv': True,
@@ -82,6 +83,7 @@ class TestDataUtils:
                 })
         df = pd.DataFrame(data)
         df['Datetime'] = pd.to_datetime(df[['Year', 'Month', 'Day', 'Hour']])
+        df['Capacity_Factor_hist'] = df['Capacity Factor'].shift(1).fillna(0.0)
         
         hist_feats = ['Capacity_Factor_hist']
         fcst_feats = ['global_tilted_irradiance']
@@ -114,4 +116,3 @@ class TestDataUtils:
         assert len(y_tr) == 80
         assert len(y_va) == 10
         assert len(y_te) == 10
-

@@ -1,140 +1,155 @@
-# PV-Forecasting
+# NYSolarForecastLab
 
-A comprehensive multi-plant solar power forecasting system supporting both deep learning and machine learning models.
+Code and benchmark data utilities for the paper:
 
-## Features
+**Toward better integration of solar energy in transportation systems: machine learning benchmarks for day-ahead photovoltaic power forecasting**
 
-- **Multiple Models**: Support for LSTM, GRU, Transformer, TCN (DL) and Random Forest, XGBoost, LightGBM, Linear Regression (ML)
-- **Multi-Plant Support**: Batch processing for multiple solar plants with resume capability
-- **Flexible Features**: Support for PV historical data, historical weather, and NWP forecasts
-- **Comprehensive Experiments**: 284 experiment configurations per plant
-- **Sensitivity Analysis**: 8 different sensitivity analysis experiments
-- **Unified Interface**: Single entry point (`run.py`) for all operations
+Zhaoyao Bao, Zhe Sun, Yishuo Jiang, Chi Xie, Lijun Sun, and H. Oliver Gao
+
+*Transportation Research Part A: Policy and Practice*, 210, 105040, 2026
+DOI: [10.1016/j.tra.2026.105040](https://doi.org/10.1016/j.tra.2026.105040)
+
+This repository supports reproducible day-ahead photovoltaic (PV) power forecasting experiments for transportation energy-management and planning applications. It includes unified data preprocessing, model training, evaluation, multi-plant experiment runners, and sensitivity-analysis scripts.
+
+## What Is Included
+
+- Eight forecasting methods: Linear Regression, Random Forest, XGBoost, LightGBM, LSTM, GRU, Transformer, and TCN.
+- Six input settings: PV, PV+HW, PV+NWP, PV+NWP+, NWP, and NWP+.
+- Two model-complexity levels, two lookback windows, and time-encoding ablations.
+- A reproducible 284-configuration experiment grid per plant.
+- Example plant CSV files in `data/` with the same schema expected by the benchmark pipeline.
+
+The committed CSV files are example benchmark-format plant files that make the repository runnable without external downloads. Download the full 100-plant data release from [https://doi.org/10.7910/DVN/3VKAGM](https://doi.org/10.7910/DVN/3VKAGM), place the `Project<ID>.csv` files under `data/`, and run the same commands below.
+
+## Data And Code Availability
+
+The paper states that the benchmark code is hosted in this GitHub repository and that the full dataset is available through Harvard Dataverse:
+
+- Code: [https://github.com/zhesun-0209/NYSolarForecastLab](https://github.com/zhesun-0209/NYSolarForecastLab)
+- Full 100-plant dataset: [https://doi.org/10.7910/DVN/3VKAGM](https://doi.org/10.7910/DVN/3VKAGM)
+
+Because the full data release is larger than 1.5 GB, this repository includes only three example PV plants for quick verification. The dataset is released for non-commercial research use; cite the paper when using either the code or data.
 
 ## Installation
 
+Use Python 3.10 or newer.
+
 ```bash
-pip install -r requirements.txt
+git clone https://github.com/zhesun-0209/NYSolarForecastLab.git
+cd NYSolarForecastLab
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
+
+For tests and documentation tooling, install `requirements-dev.txt`.
+
+On Apple Silicon or constrained environments, prefix commands with `FORCE_CPU=1` if PyTorch advertises MPS but a model run fails.
 
 ## Quick Start
 
-### 1. Generate Configuration Files
+Generate plant configuration files for every `data/Project*.csv` file:
 
 ```bash
 python run.py config
 ```
 
-This automatically generates configuration files for all CSV files in the `data/` directory.
-
-### 2. Run Single Plant Experiments
+Run a fast smoke test on the included Plant 171 data:
 
 ```bash
-python run.py forecast --plant-id 1140
+python run.py forecast --plant-id 171 --test-mode --test-model Linear --output-dir results/smoke
 ```
 
-Runs all 284 experiments for plant 1140.
-
-### 3. Run Multi-Plant Batch
+Run the full 284-configuration grid for one plant:
 
 ```bash
-# Run first 25 plants
-python run.py multi_plant --max-plants 25
-
-# Run specific plants
-python run.py multi_plant --plants 1140 1141 1142
-
-# Skip first 10 plants, run next 20
-python run.py multi_plant --skip 10 --max-plants 20
+python run.py forecast --plant-id 171 --output-dir results/plant171
 ```
 
-### 4. Check Experiment Status
+Run multiple configured plants:
 
 ```bash
-python run.py status
+python run.py multi_plant --plants 171 172 186 --output-dir results/sample_plants
 ```
 
-### 5. Run Sensitivity Analysis
+Check progress:
 
 ```bash
-python run.py sensitivity --analysis lookback_window
+python run.py status --output-dir results/sample_plants
 ```
 
-Available analysis types:
-- `lookback_window`: Analyze effect of lookback window length
-- `model_complexity`: Analyze effect of model complexity
-- `training_scale`: Analyze effect of training dataset size
-- `seasonal_effect`: Analyze seasonal performance variations
-- `hourly_effect`: Analyze hourly performance variations
-- `weather_feature`: Analyze effect of weather feature tiers
+## Experiment Grid
 
-## Project Structure
+Each full plant benchmark contains 280 non-Linear model configurations plus 4 Linear Regression configurations:
 
-```
-PV-Forecasting/
-├── config/              # Configuration management
-│   ├── config_manager.py
-│   ├── plant_template.yaml
-│   └── plants/          # Plant-specific configs
-├── data/                # Data utilities
-│   └── data_utils.py
-├── eval.py              # Evaluation metrics and result saving
-├── experiments.py       # Experiment running logic
-├── models/              # Model implementations
-│   ├── rnn_models.py    # LSTM, GRU
-│   ├── transformer.py   # Transformer
-│   ├── tcn.py           # TCN
-│   └── ml_models.py     # RF, XGB, LGBM, Linear
-├── run.py               # Unified entry point
-├── sensitivity_analysis/ # Sensitivity analysis experiments
-├── train/               # Training modules
-│   ├── train_dl.py      # Deep learning training
-│   └── train_ml.py      # Machine learning training
-└── utils/               # Utility functions
-    └── normalization.py # Unified scaler
-```
+| Component | Values |
+| --- | --- |
+| Deep learning models | LSTM, GRU, Transformer, TCN |
+| Machine-learning models | Random Forest, XGBoost, LightGBM |
+| Baseline | Linear Regression |
+| Complexity | low, high |
+| Lookback | 24 h, 72 h for PV-based inputs; 0 h for NWP-only inputs |
+| Time encoding | enabled, disabled |
+| Input sets | PV, PV+HW, PV+NWP, PV+NWP+, NWP, NWP+ |
 
-## Experiment Configuration
-
-Each plant runs 284 experiments covering:
-- **Models**: 4 DL + 3 ML + 1 Linear = 8 models
-- **Complexity**: Low, High (2 levels)
-- **Lookback**: 24h, 72h (2 options)
-- **Time Encoding**: True, False (2 options)
-- **Features**: PV, PV+HW, PV+NWP, PV+NWP+, NWP, NWP+ (6 combinations)
-
-Total: 8 × 2 × 2 × 2 × 6 = 192 (adjusted to 284 with specific rules)
+The experiment runner writes CSV summaries incrementally, so interrupted runs can be resumed.
 
 ## Data Format
 
-CSV files should contain:
-- `Year`, `Month`, `Day`, `Hour`: Time columns
-- `Capacity_Factor`: Target variable (PV power output)
-- Weather features: `global_tilted_irradiance`, `temperature_2m`, etc.
-- Forecast features: `*_pred` suffix for NWP forecasts
+Plant files must be named `Project<ID>.csv` and include:
 
-## Output
+- Time columns: `Year`, `Month`, `Day`, `Hour`
+- Target: `Capacity Factor` as a percentage-scale capacity factor
+- Historical weather columns such as `global_tilted_irradiance`, `temperature_2m`, `relative_humidity_2m`
+- Numerical weather prediction columns with the `_pred` suffix, for example `global_tilted_irradiance_pred`
 
-Results are saved as:
-- `summary.csv`: Experiment summary metrics
-- `predictions.csv`: Detailed predictions
-- `training_log.csv`: Training history (DL models)
-- Excel files: Aggregated results per plant
+See [data/README.md](data/README.md) for the complete schema notes and feature groups used by the code.
 
-## License
+## Sensitivity Analyses
 
-MIT License - see LICENSE file for details
+```bash
+python run.py sensitivity --analysis lookback_window
+python run.py sensitivity --analysis model_complexity
+python run.py sensitivity --analysis training_scale
+python run.py sensitivity --analysis seasonal_effect
+python run.py sensitivity --analysis hourly_effect
+python run.py sensitivity --analysis weather_feature
+```
+
+## Repository Layout
+
+```text
+NYSolarForecastLab/
+├── config/                  # Plant and experiment configuration
+├── data/                    # Example plant CSVs and data documentation
+├── docs/                    # Sphinx documentation
+├── models/                  # Forecasting model implementations
+├── sensitivity_analysis/    # Ablation and sensitivity-analysis scripts
+├── tests/                   # Unit tests and interface smoke tests
+├── train/                   # Training pipelines for DL and ML models
+├── eval.py                  # Metrics and result export helpers
+├── experiments.py           # Experiment grid and batch runners
+└── run.py                   # Command-line entry point
+```
 
 ## Citation
 
-If you use this code in your research, please cite:
+If you use this repository, please cite the paper:
 
 ```bibtex
-@software{pv_forecasting,
-  title={PV-Forecasting: Multi-Plant Solar Power Prediction System},
-  author={Your Name},
-  year={2024},
-  url={https://github.com/yourusername/PV-Forecasting}
+@article{BAO2026105040,
+  title = {Toward better integration of solar energy in transportation systems: machine learning benchmarks for day-ahead photovoltaic power forecasting},
+  journal = {Transportation Research Part A: Policy and Practice},
+  volume = {210},
+  pages = {105040},
+  year = {2026},
+  issn = {0965-8564},
+  doi = {10.1016/j.tra.2026.105040},
+  url = {https://www.sciencedirect.com/science/article/pii/S0965856426001813},
+  author = {Zhaoyao Bao and Zhe Sun and Yishuo Jiang and Chi Xie and Lijun Sun and H. {Oliver Gao}},
+  keywords = {Transportation, Solar power, Forecasting, Photovoltaic, Machine learning, Benchmark}
 }
 ```
 
+## License
+
+This project is released under the MIT License. See [LICENSE](LICENSE).

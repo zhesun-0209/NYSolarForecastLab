@@ -42,9 +42,9 @@ class TestModels:
         }
         
         model = LSTM(hist_dim=5, fcst_dim=3, config=config)
-        output = model(X_hist, X_fcst, hours)
+        output = model(X_hist, X_fcst)
         
-        assert output.shape == (4, 24, 1)
+        assert output.shape == (4, 24)
         assert not torch.isnan(output).any()
     
     def test_gru_forward(self, sample_data):
@@ -61,9 +61,9 @@ class TestModels:
         }
         
         model = GRU(hist_dim=5, fcst_dim=3, config=config)
-        output = model(X_hist, X_fcst, hours)
+        output = model(X_hist, X_fcst)
         
-        assert output.shape == (4, 24, 1)
+        assert output.shape == (4, 24)
         assert not torch.isnan(output).any()
     
     def test_transformer_forward(self, sample_data):
@@ -80,9 +80,9 @@ class TestModels:
         }
         
         model = Transformer(hist_dim=5, fcst_dim=3, config=config)
-        output = model(X_hist, X_fcst, hours)
+        output = model(X_hist, X_fcst)
         
-        assert output.shape == (4, 24, 1)
+        assert output.shape == (4, 24)
         assert not torch.isnan(output).any()
     
     def test_tcn_forward(self, sample_data):
@@ -99,8 +99,7 @@ class TestModels:
         }
         
         model = TCNModel(hist_dim=5, fcst_dim=3, config=config)
-        output = model(X_hist, X_fcst, hours)
+        output = model(X_hist, X_fcst)
         
-        assert output.shape == (4, 24, 1)
+        assert output.shape == (4, 24)
         assert not torch.isnan(output).any()
-

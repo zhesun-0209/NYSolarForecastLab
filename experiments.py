@@ -40,8 +40,8 @@ except ImportError:
         torch.manual_seed(seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
         os.environ['PYTHONHASHSEED'] = str(seed)
 
 
@@ -157,9 +157,10 @@ def generate_all_configs(data_path: str, test_mode: bool = False, test_model: st
                     configs.append(create_config(data_path, model, complexity, 0, feat_combo, use_te, True))
 
     # Linear model
-    for feat_combo in feature_combos_nwp:
-        for use_te in te_options:
-            configs.append(create_config(data_path, 'Linear', None, 0, feat_combo, use_te, True))
+    if (not test_mode) or test_model == 'Linear':
+        for feat_combo in feature_combos_nwp:
+            for use_te in te_options:
+                configs.append(create_config(data_path, 'Linear', None, 0, feat_combo, use_te, True))
 
     return configs
 
@@ -212,7 +213,7 @@ def run_single_experiment(config: Dict, df: pd.DataFrame) -> Dict:
         }
 
 
-def run_forecast_experiments(plant_id: str = '1140', output_dir: Optional[str] = None, 
+def run_forecast_experiments(plant_id: str = '171', output_dir: Optional[str] = None,
                              test_mode: bool = False, test_model: str = 'LSTM'):
     """Run all 284 experiments for a single plant with resume support
     
@@ -224,11 +225,11 @@ def run_forecast_experiments(plant_id: str = '1140', output_dir: Optional[str] =
     """
     if test_mode:
         print("=" * 80)
-        print(f"PV Forecasting: Test Mode - Running {test_model} experiments only")
+        print(f"NYSolarForecastLab: Test Mode - Running {test_model} experiments only")
         print("=" * 80)
     else:
         print("=" * 80)
-        print("PV Forecasting: Running 284 Experiments (with resume support)")
+        print("NYSolarForecastLab: Running 284 Experiments (with resume support)")
         print("=" * 80)
     
     data_path = os.path.join(script_dir, "data", f"Project{plant_id}.csv")
@@ -252,9 +253,8 @@ def run_forecast_experiments(plant_id: str = '1140', output_dir: Optional[str] =
     
     print(f"Total configurations generated: {len(configs)}")
     
-    import torch
-    if torch.cuda.is_available():
-        print(f"GPU: {torch.cuda.get_device_name(0)}")
+    from utils.gpu_utils import get_device_description
+    print(f"Device: {get_device_description()}")
     
     # Set output directory
     if output_dir is None:
@@ -284,7 +284,8 @@ def run_forecast_experiments(plant_id: str = '1140', output_dir: Optional[str] =
         results_df = pd.DataFrame(columns=[
             'experiment_name', 'model', 'complexity', 'feature_combo',
             'lookback_hours', 'use_time_encoding', 'mae', 'rmse', 'r2', 'nrmse',
-            'train_time_sec', 'test_samples', 'best_epoch', 'param_count'
+            'train_time_sec', 'test_samples', 'best_epoch', 'param_count',
+            'status', 'error'
         ])
         results_df.to_csv(output_file, index=False, encoding='utf-8-sig')
         done_experiments = set()
@@ -348,7 +349,9 @@ def run_forecast_experiments(plant_id: str = '1140', output_dir: Optional[str] =
                     'train_time_sec': round(training_time, 2),
                     'test_samples': metrics.get('samples_count', 0),
                     'best_epoch': int(metrics.get('best_epoch', 0)) if not pd.isna(metrics.get('best_epoch', 0)) else 0,
-                    'param_count': int(metrics.get('param_count', 0))
+                    'param_count': int(metrics.get('param_count', 0)),
+                    'status': 'SUCCESS',
+                    'error': ''
                 }
                 
                 print(f"  [OK] MAE: {metrics.get('mae', 0):.4f}, RMSE: {metrics.get('rmse', 0):.4f}")
@@ -365,7 +368,9 @@ def run_forecast_experiments(plant_id: str = '1140', output_dir: Optional[str] =
                     'use_time_encoding': config.get('use_time_encoding', False),
                     'mae': np.nan, 'rmse': np.nan, 'r2': np.nan, 'nrmse': np.nan,
                     'train_time_sec': 0, 'test_samples': 0,
-                    'best_epoch': 0, 'param_count': 0
+                    'best_epoch': 0, 'param_count': 0,
+                    'status': 'FAILED',
+                    'error': result.get('error', 'Unknown error')
                 }
                 pd.DataFrame([error_row]).to_csv(output_file, mode='a', header=False, index=False, encoding='utf-8-sig')
         
@@ -373,6 +378,22 @@ def run_forecast_experiments(plant_id: str = '1140', output_dir: Optional[str] =
             print(f"  [ERROR] {exp_name} failed: {str(e)}")
             import traceback
             traceback.print_exc()
+            error_row = {
+                'experiment_name': exp_name,
+                'model': config.get('model', 'Unknown'),
+                'complexity': config.get('model_complexity', 'N/A'),
+                'feature_combo': 'FAILED',
+                'lookback_hours': config.get('past_hours', 0),
+                'use_time_encoding': config.get('use_time_encoding', False),
+                'mae': np.nan, 'rmse': np.nan, 'r2': np.nan, 'nrmse': np.nan,
+                'train_time_sec': 0, 'test_samples': 0,
+                'best_epoch': 0, 'param_count': 0,
+                'status': 'FAILED',
+                'error': str(e)
+            }
+            pd.DataFrame([error_row]).to_csv(
+                output_file, mode='a', header=False, index=False, encoding='utf-8-sig'
+            )
             continue
     
     print(f"\n{'='*80}")
@@ -387,7 +408,14 @@ def check_plant_status(plant_id: str, output_dir: str = '.') -> Dict:
     result_files = glob.glob(pattern)
     
     if not result_files:
-        return {'plant_id': plant_id, 'status': 'NOT_STARTED', 'completed': 0, 'total': 284}
+        return {
+            'plant_id': plant_id,
+            'status': 'NOT_STARTED',
+            'completed': 0,
+            'total': 284,
+            'progress': 0.0,
+            'result_file': None
+        }
     
     result_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
     latest_file = result_files[0]
@@ -465,8 +493,9 @@ def batch_create_configs(data_dir: str = 'data', config_dir: str = 'config/plant
         
         config = template.copy()
         config['plant_id'] = plant_id
+        config['plant_name'] = f"Project {plant_id}"
         config['data_path'] = csv_file
-        config['start_date'] = start_date
+        config['start_date'] = max(start_date, '2022-01-01')
         config['end_date'] = end_date
         
         config_file = os.path.join(config_dir, f"Plant{plant_id}.yaml")
@@ -589,9 +618,8 @@ def run_plant_experiments(plant_config_path: str, resume: bool = True, output_di
         df = df[df['Datetime'] <= end_dt].copy()
         print(f"  Data filtered: End date = {end_date} ({len(df)} rows remain)")
     
-    import torch
-    if torch.cuda.is_available():
-        print(f"GPU: {torch.cuda.get_device_name(0)}")
+    from utils.gpu_utils import get_device_description
+    print(f"Device: {get_device_description()}")
     
     output_file = os.path.join(output_dir, f"results_{plant_id}.csv")
     
@@ -911,4 +939,3 @@ def run_all_plants(resume: bool = True, skip: int = 0, max_plants: int = None,
     print(f"Total time: {total_time/3600:.2f} hours")
     print(f"Avg per plant: {total_time/plants_processed/60:.1f} minutes" if plants_processed > 0 else "")
     print("=" * 80)
-

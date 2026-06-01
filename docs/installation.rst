@@ -4,7 +4,7 @@ Installation
 Requirements
 ------------
 
-- Python 3.8 or higher
+- Python 3.10 or higher
 - PyTorch 1.12.0 or higher
 - NumPy, Pandas, Scikit-learn
 - XGBoost, LightGBM (for ML models)
@@ -16,8 +16,8 @@ Installation Steps
 
 .. code-block:: bash
 
-   git clone https://github.com/zhesun-0209/PV-Forecasting.git
-   cd PV-Forecasting
+   git clone https://github.com/zhesun-0209/NYSolarForecastLab.git
+   cd NYSolarForecastLab
 
 2. Install dependencies:
 
@@ -25,9 +25,14 @@ Installation Steps
 
    pip install -r requirements.txt
 
+For documentation and test tooling:
+
+.. code-block:: bash
+
+   pip install -r requirements-dev.txt
+
 3. Verify installation:
 
 .. code-block:: bash
 
-   python -c "import torch; print(torch.__version__)"
-
+   python run.py --help

@@ -22,7 +22,7 @@ from train.train_utils import (
     count_parameters
 )
 from eval import calculate_metrics, calculate_mse, calculate_daily_avg_metrics
-from utils.gpu_utils import get_gpu_memory_used
+from utils.gpu_utils import clear_gpu_memory, get_gpu_memory_used, get_torch_device
 from models.transformer import Transformer
 from models.rnn_models import LSTM, GRU
 from models.tcn import TCNModel
@@ -47,13 +47,12 @@ def train_dl_model(
     Xh_te, Xf_te, y_te, hrs_te, dates_te = test_data
     _, _, scaler_target = scalers
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = get_torch_device()
     
-    # Clear GPU memory before training to avoid OOM
+    # Clear CUDA memory before training to avoid OOM. No-op on MPS/CPU.
     import gc
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        gc.collect()
+    clear_gpu_memory()
+    gc.collect()
     
     # DataLoaders
     def make_loader(Xh, Xf, y, hrs, bs, shuffle=False):

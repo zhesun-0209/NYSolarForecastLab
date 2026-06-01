@@ -6,9 +6,9 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.abspath('..'))
 
-project = 'PV-Forecasting'
-copyright = '2025, PV-Forecasting Contributors'
-author = 'PV-Forecasting Team'
+project = 'NYSolarForecastLab'
+copyright = '2026, NYSolarForecastLab contributors'
+author = 'Zhaoyao Bao, Zhe Sun, Yishuo Jiang, Chi Xie, Lijun Sun, and H. Oliver Gao'
 
 extensions = [
     'sphinx.ext.autodoc',
@@ -21,7 +21,6 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
@@ -29,4 +28,3 @@ intersphinx_mapping = {
     'pandas': ('https://pandas.pydata.org/docs/', None),
     'torch': ('https://pytorch.org/docs/stable/', None),
 }
-

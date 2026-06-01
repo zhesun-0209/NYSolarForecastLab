@@ -10,7 +10,7 @@ os.environ['PYTHONWARNINGS'] = 'ignore'
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.linear_model import LinearRegression
 from eval import calculate_metrics, calculate_mse, calculate_daily_avg_metrics
-from utils.gpu_utils import get_gpu_memory_used
+from utils.gpu_utils import clear_gpu_memory, get_gpu_memory_used
 from models.ml_models import train_rf, train_xgb, train_lgbm, train_linear
 
 def train_ml_model(
@@ -107,12 +107,10 @@ def train_ml_model(
     else:
         raise ValueError(f"Unsupported ML model: {name}")
 
-    # Clear GPU memory before training to avoid OOM
+    # Clear CUDA memory before training to avoid OOM. No-op on MPS/CPU.
     import gc
-    import torch
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        gc.collect()
+    clear_gpu_memory()
+    gc.collect()
     
     start_time = time.time()
     model = trainer(X_train_flat, y_train_flat, params)
@@ -213,7 +211,7 @@ def train_ml_model(
         'y_true_all':     y_matrix,   # Full ground truth (for potential detailed analysis)
         'dates':          dates_test,
         'epoch_logs':     [{'epoch': 1, 'train_loss': np.nan, 'val_loss': mse}],  # ML models don't have train_loss
-        'inverse_transformed': False  # Capacity Factor doesn't need inverse normalization
+        'inverse_transformed': bool(scaler_target is not None and inverse_transform)
     }
 
     return model, metrics
