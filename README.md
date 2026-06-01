@@ -107,20 +107,36 @@ python run.py multi_plant --output-dir results/full_release
 
 The code is MIT licensed. Dataset access and reuse follow the paper's data availability statement and the Dataverse record; the data are for non-commercial research use and should be cited together with the paper.
 
+## Data Format
+
+Files must be named `Project<ID>.csv`. The three included examples cover plants 171, 172, and 186, each with hourly records from 2020-01-01 to 2024-09-28; experiments use the default benchmark period 2022-01-01 to 2024-09-28.
+
+Required columns:
+
+- `Year`, `Month`, `Day`, `Hour`
+- `Capacity Factor`
+- weather features such as `global_tilted_irradiance`, `vapour_pressure_deficit`, `relative_humidity_2m`, `temperature_2m`, `wind_gusts_10m`, `cloud_cover_low`, `wind_speed_100m`, `snow_depth`, `dew_point_2m`, `surface_pressure`, and `precipitation`
+- matching day-ahead forecast columns with the `_pred` suffix
+
 ## Repository Layout
 
 ```text
 NYSolarForecastLab/
 ├── run.py                 # Thin CLI wrapper
 ├── nysolarforecastlab/    # Source package: experiments, models, training, evaluation
-├── data/                  # Example plant CSVs and schema notes
+├── data/                  # Example plant CSVs
 ├── config/plants/         # Generated plant configs
 ├── examples/              # Lightweight plotting helpers
-├── docs/                  # Sphinx documentation
 └── tests/                 # Unit and CLI-facing tests
 ```
 
-For more detail, see [REPRODUCIBILITY.md](REPRODUCIBILITY.md), [data/README.md](data/README.md), and the Sphinx docs in `docs/`.
+## Development Checks
+
+```bash
+python run.py --help
+python run.py config
+python -m pytest -q
+```
 
 ## Citation
 
