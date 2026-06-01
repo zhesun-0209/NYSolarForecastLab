@@ -28,6 +28,37 @@ from data.data_utils import preprocess_features, create_daily_windows, split_dat
 from train.train_dl import train_dl_model
 from train.train_ml import train_ml_model
 
+
+def get_result_file_path(output_dir: str, plant_id: str) -> str:
+    """Return the canonical result CSV path for one plant."""
+    return os.path.join(output_dir, f"results_{plant_id}_all.csv")
+
+
+def find_latest_result_file(output_dir: str, plant_id: str) -> Optional[str]:
+    """Find a plant result CSV, preferring the canonical filename."""
+    canonical_file = get_result_file_path(output_dir, plant_id)
+    if os.path.exists(canonical_file):
+        return canonical_file
+
+    candidates = []
+    patterns = [
+        os.path.join(output_dir, f"results_{plant_id}.csv"),
+        os.path.join(output_dir, f"results_{plant_id}_*.csv"),
+    ]
+
+    for pattern in patterns:
+        matches = glob.glob(pattern) if any(ch in pattern for ch in "*?[") else [pattern]
+        for path in matches:
+            if os.path.exists(path) and path not in candidates:
+                candidates.append(path)
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda path: os.path.getmtime(path), reverse=True)
+    return candidates[0]
+
+
 # Import sensitivity analysis utilities
 try:
     from sensitivity_analysis.common_utils import set_global_seed
@@ -265,14 +296,20 @@ def run_forecast_experiments(plant_id: str = '171', output_dir: Optional[str] = 
     print(f"Output directory: {output_dir}")
     
     # Check for existing results (resume support)
-    output_file = os.path.join(output_dir, f"results_{plant_id}_all.csv")
+    output_file = get_result_file_path(output_dir, plant_id)
     
     if os.path.exists(output_file):
         print(f"Found existing result file: {output_file}")
         results_df = pd.read_csv(output_file)
         # Handle old format files that might not have 'experiment_name' column
-        if 'experiment_name' in results_df.columns:
-            done_experiments = set(results_df["experiment_name"].tolist())
+        if 'status' in results_df.columns and 'experiment_name' in results_df.columns:
+            done_experiments = set(
+                results_df.loc[
+                    results_df['status'] == 'SUCCESS', 'experiment_name'
+                ].dropna().tolist()
+            )
+        elif 'experiment_name' in results_df.columns:
+            done_experiments = set(results_df["experiment_name"].dropna().tolist())
         else:
             # Old format: try to reconstruct experiment_name from other columns
             if len(results_df) > 0:
@@ -404,10 +441,9 @@ def run_forecast_experiments(plant_id: str = '171', output_dir: Optional[str] = 
 
 def check_plant_status(plant_id: str, output_dir: str = '.') -> Dict:
     """Check completion status of a plant"""
-    pattern = os.path.join(output_dir, f"results_{plant_id}_*.csv")
-    result_files = glob.glob(pattern)
-    
-    if not result_files:
+    latest_file = find_latest_result_file(output_dir, plant_id)
+
+    if not latest_file:
         return {
             'plant_id': plant_id,
             'status': 'NOT_STARTED',
@@ -416,10 +452,7 @@ def check_plant_status(plant_id: str, output_dir: str = '.') -> Dict:
             'progress': 0.0,
             'result_file': None
         }
-    
-    result_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
-    latest_file = result_files[0]
-    
+
     try:
         df = pd.read_csv(latest_file)
         completed = len(df[df.get('status', '') == 'SUCCESS']) if 'status' in df.columns else len(df)
@@ -540,10 +573,11 @@ def check_plant_completion(plant_id: str, output_dir: str = None) -> tuple:
         print(f"  Warning: Output directory does not exist: {output_dir}")
         return False, 0, None
     
-    result_file = os.path.join(output_dir, f"results_{plant_id}.csv")
+    result_file = find_latest_result_file(output_dir, plant_id)
     
-    if not os.path.exists(result_file):
-        print(f"  Info: Result file not found: {result_file}")
+    if not result_file:
+        expected_file = get_result_file_path(output_dir, plant_id)
+        print(f"  Info: Result file not found: {expected_file}")
         return False, 0, None
     
     try:
@@ -621,11 +655,16 @@ def run_plant_experiments(plant_config_path: str, resume: bool = True, output_di
     from utils.gpu_utils import get_device_description
     print(f"Device: {get_device_description()}")
     
-    output_file = os.path.join(output_dir, f"results_{plant_id}.csv")
+    output_file = get_result_file_path(output_dir, plant_id)
     
     done_experiments = set()
     
     if resume and existing_file:
+        if existing_file != output_file and not os.path.exists(output_file):
+            import shutil
+            shutil.copy2(existing_file, output_file)
+            print(f"Copied legacy result file to canonical path: {output_file}")
+            existing_file = output_file
         print(f"Resuming from: {output_file}")
         results_df = pd.read_csv(output_file)
         
@@ -640,7 +679,8 @@ def run_plant_experiments(plant_config_path: str, resume: bool = True, output_di
         results_df = pd.DataFrame(columns=[
             'plant_id', 'experiment_name', 'model', 'complexity', 'scenario',
             'lookback_hours', 'use_time_encoding', 'mae', 'rmse', 'r2', 'nrmse',
-            'train_time_sec', 'test_samples', 'best_epoch', 'param_count', 'status'
+            'train_time_sec', 'test_samples', 'best_epoch', 'param_count',
+            'status', 'error'
         ])
         results_df.to_csv(output_file, index=False, encoding='utf-8-sig')
         print(f"Created new result file: {output_file}")

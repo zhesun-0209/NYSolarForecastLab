@@ -22,4 +22,8 @@ Multi-plant benchmark:
 The experiment runner appends rows after each configuration and can resume from
 existing result CSVs.
 
+Each plant result is written as ``results_<plant_id>_all.csv``. Failed rows are
+kept for auditability and are not counted as completed by
+``python run.py status``.
+
 See ``REPRODUCIBILITY.md`` in the repository root for the detailed command list.

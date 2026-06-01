@@ -41,7 +41,11 @@ Expected artifact:
 results/smoke/results_171_all.csv
 ```
 
-The file should contain two Linear Regression NWP/NWP+ smoke-test rows.
+The file should contain two successful Linear Regression NWP/NWP+ smoke-test rows. Check it with:
+
+```bash
+python run.py status --output-dir results/smoke
+```
 
 ## 4. Full Single-Plant Benchmark
 
@@ -57,6 +61,8 @@ results/plant171/results_171_all.csv
 
 The full grid contains 284 configurations per plant. The runner appends results after each experiment, so rerunning the command resumes from the existing CSV.
 
+The required time depends strongly on hardware and the selected models. The Linear smoke test is intended as a correctness check; full single-plant and multi-plant runs are benchmark jobs and can take substantially longer.
+
 ## 5. Multi-Plant Benchmark
 
 ```bash
@@ -66,6 +72,8 @@ python run.py multi_plant --plants 171 172 186 --output-dir results/sample_plant
 For the full release, place all `Project<ID>.csv` files under `data/`, regenerate configs with `python run.py config`, and omit `--plants`.
 
 Full 100-plant data release: [https://doi.org/10.7910/DVN/3VKAGM](https://doi.org/10.7910/DVN/3VKAGM)
+
+The paper states that the full release is for non-commercial research use and should be cited together with the paper. The code license is MIT; the data terms are separate.
 
 ## 6. Reporting
 
@@ -83,5 +91,7 @@ The main result CSV columns are:
 | `train_time_sec` | Wall-clock training time |
 | `test_samples` | Number of forecasted hourly targets in the test set |
 | `param_count` | Trainable parameter count or ML proxy count |
+| `status` | `SUCCESS` or `FAILED`; only successful rows count toward completion |
+| `error` | Error message for failed configurations |
 
 Keep generated outputs under `results/`; they are ignored by Git.

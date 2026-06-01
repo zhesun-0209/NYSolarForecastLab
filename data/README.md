@@ -8,7 +8,7 @@ This directory contains benchmark-format PV plant CSV files. The current reposit
 | `Project172.csv` | 172 | 41,609 | 2020-01-01 to 2024-09-28 | 2022-01-01 to 2024-09-28 |
 | `Project186.csv` | 186 | 41,609 | 2020-01-01 to 2024-09-28 | 2022-01-01 to 2024-09-28 |
 
-The experiment code filters all plant files to the default benchmark period unless a plant configuration specifies a later start or earlier end date.
+The experiment code filters all plant files to the default benchmark period unless a plant configuration specifies a later start or earlier end date. These committed files are example fixtures for code verification, not a substitute for the paper-scale benchmark release.
 
 ## Full Data Release
 
@@ -17,6 +17,8 @@ The full 100-plant benchmark dataset is available at:
 [https://doi.org/10.7910/DVN/3VKAGM](https://doi.org/10.7910/DVN/3VKAGM)
 
 The paper notes that the complete data volume is larger than 1.5 GB, so the GitHub repository carries only three example plant files. The full data release is for non-commercial research use and should be cited together with the paper.
+
+The MIT license in this repository applies to the code. Dataset access and reuse are governed by the paper's data availability statement and the Dataverse record.
 
 ## Required Columns
 
@@ -55,6 +57,9 @@ Download additional plant files from [https://doi.org/10.7910/DVN/3VKAGM](https:
 ```bash
 python run.py config
 python run.py multi_plant --output-dir results/full_release
+python run.py status --output-dir results/full_release
 ```
 
 The generated plant configs will appear under `config/plants/`.
+
+Each plant writes `results_<PlantID>_all.csv` under the selected output directory.

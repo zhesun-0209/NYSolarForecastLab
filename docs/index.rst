@@ -11,7 +11,9 @@ with the Transportation Research Part A paper.
    installation
    quickstart
    data
+   visualization
    reproducibility
+   results
    api/index
    contributing
 

@@ -52,6 +52,7 @@ dmypy.json
 # Results and outputs
 results/
 checkpoints/
+figures/
 paper.pdf
 *.pth
 *.pkl

@@ -10,6 +10,10 @@ https://doi.org/10.7910/DVN/3VKAGM. The paper notes that the complete release is
 larger than 1.5 GB, so the GitHub repository includes only the three example
 plants needed for quick verification.
 
+The repository code is MIT licensed. Dataset use is separate: the paper's data
+availability statement says the materials are for non-commercial research use
+and should be cited together with the paper.
+
 Required columns include ``Year``, ``Month``, ``Day``, ``Hour``, ``Capacity
 Factor``, historical weather features, and matching numerical-weather-prediction
 columns with the ``_pred`` suffix.
