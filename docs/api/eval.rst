@@ -1,5 +1,0 @@
-Evaluation
-==========
-
-.. automodule:: eval
-   :members:

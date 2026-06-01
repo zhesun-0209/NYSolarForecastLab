@@ -1,5 +1,5 @@
 Data Utilities
 ==============
 
-.. automodule:: data.data_utils
+.. automodule:: nysolarforecastlab.data.data_utils
    :members:

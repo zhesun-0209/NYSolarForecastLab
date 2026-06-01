@@ -17,15 +17,15 @@ import numpy as np
 warnings.filterwarnings('ignore')
 os.environ['PYTHONWARNINGS'] = 'ignore'
 from torch.utils.data import DataLoader, TensorDataset
-from train.train_utils import (
+from nysolarforecastlab.train.train_utils import (
     get_optimizer, get_scheduler,
     count_parameters
 )
-from eval import calculate_metrics, calculate_mse, calculate_daily_avg_metrics
-from utils.gpu_utils import clear_gpu_memory, get_gpu_memory_used, get_torch_device
-from models.transformer import Transformer
-from models.rnn_models import LSTM, GRU
-from models.tcn import TCNModel
+from nysolarforecastlab.evaluation import calculate_metrics, calculate_mse, calculate_daily_avg_metrics
+from nysolarforecastlab.utils.gpu_utils import clear_gpu_memory, get_gpu_memory_used, get_torch_device
+from nysolarforecastlab.models.transformer import Transformer
+from nysolarforecastlab.models.rnn_models import LSTM, GRU
+from nysolarforecastlab.models.tcn import TCNModel
 
 def train_dl_model(
     config: dict,
@@ -274,7 +274,7 @@ def train_dl_model(
     raw_nrmse = daily_metrics['nrmse']
     
     # Also extract 24h-ahead predictions for saving to CSV (for visualization)
-    from eval import extract_one_hour_ahead_predictions
+    from nysolarforecastlab.evaluation import extract_one_hour_ahead_predictions
     final_preds_24h, final_gt_24h = extract_one_hour_ahead_predictions(p_inv_matrix, y_inv_matrix)
 
     # Decide whether to save model based on config

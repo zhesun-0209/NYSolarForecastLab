@@ -20,12 +20,12 @@ import argparse
 from datetime import datetime
 
 # Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from sensitivity_analysis.common_utils import set_global_seed
+from nysolarforecastlab.sensitivity_analysis.common_utils import set_global_seed
 
 
-def run_all_experiments(data_dir='data', output_dir='sensitivity_analysis/results', experiments=None):
+def run_all_experiments(data_dir='data', output_dir='results/sensitivity_analysis', experiments=None):
     """
     Run all or selected sensitivity analysis experiments
     
@@ -82,7 +82,10 @@ def run_all_experiments(data_dir='data', output_dir='sensitivity_analysis/result
         
         try:
             # Import and run experiment
-            module = __import__(f'sensitivity_analysis.{exp_module}', fromlist=[''])
+            module = __import__(
+                f'nysolarforecastlab.sensitivity_analysis.{exp_module}',
+                fromlist=['']
+            )
             run_func = getattr(module, f'run_{exp_module}_analysis')
             
             start_time = datetime.now()
@@ -138,4 +141,3 @@ if __name__ == '__main__':
         output_dir=args.output_dir,
         experiments=args.experiments
     )
-

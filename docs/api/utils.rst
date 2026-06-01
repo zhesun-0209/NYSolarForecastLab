@@ -1,8 +1,8 @@
 Utilities
 =========
 
-.. automodule:: utils.normalization
+.. automodule:: nysolarforecastlab.utils.normalization
    :members:
 
-.. automodule:: utils.gpu_utils
+.. automodule:: nysolarforecastlab.utils.gpu_utils
    :members:

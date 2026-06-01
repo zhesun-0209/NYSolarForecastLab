@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Sensitivity Analysis Experiment 2: Hourly Effect
+Sensitivity Analysis Experiment 8: Dataset Extension (Hourly Sliding Windows)
 
-Analyze model performance across 24 hours of the day (0-23)
+Analyze model performance with hourly sliding windows (vs. daily windows)
 - Models: 7 models (LSTM, GRU, Transformer, TCN, RF, XGB, LGBM) + Linear (NWP only)
 - Configuration: PV+NWP, 24-hour lookback, no TE, high complexity
-- Hours: 0-23
+- Window type: Hourly sliding windows (creates ~24x more samples than daily windows)
+- Current: Daily windows predict 0-23 hours starting from 23:00 each day
+- New: Hourly windows can predict from any hour (e.g., 1-0, 2-1, etc.)
 - Metrics: MAE, RMSE, R2, NRMSE, train_time (mean and std across 100 plants)
 """
 
@@ -17,9 +19,9 @@ import numpy as np
 from tqdm import tqdm
 
 # Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from sensitivity_analysis.common_utils import (
+from nysolarforecastlab.sensitivity_analysis.common_utils import (
     DL_MODELS, ML_MODELS, ALL_MODELS_NO_LINEAR,
     compute_nrmse,
     create_base_config,
@@ -29,19 +31,20 @@ from sensitivity_analysis.common_utils import (
     set_global_seed,
     load_and_filter_data
 )
-from data.data_utils import preprocess_features, create_daily_windows, split_data
+from nysolarforecastlab.data.data_utils import preprocess_features, create_sliding_windows, split_data
 
 
-def run_hourly_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity_analysis/results', local_output_dir: str = None):
+def run_dataset_extension_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity_analysis/results', local_output_dir: str = None):
     """
-    Run hourly effect analysis across all plants
+    Run dataset extension analysis across all plants
+    Using hourly sliding windows instead of daily windows
     
     Args:
         data_dir: Directory containing plant CSV files
         output_dir: Directory to save results
     """
     print("=" * 80)
-    print("Sensitivity Analysis Experiment 2: Hourly Effect")
+    print("Sensitivity Analysis Experiment 8: Dataset Extension (Hourly Sliding Windows)")
     print("=" * 80)
     
 
@@ -95,76 +98,40 @@ def run_hourly_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity_a
                                           lookback=24, use_te=False)
             
             try:
-                # Run experiment using the corrected function
-                result = run_single_experiment(config, df.copy(), use_sliding_windows=False)
+                # Run experiment using corrected function
+                result = run_single_experiment(config, df.copy(), use_sliding_windows=True)
                 
                 # Check if experiment succeeded
                 if result['status'] != 'SUCCESS':
                     print(f"  Error running {model}: {result.get('error', 'Unknown error')}")
                     continue
                 
-                # Get predictions and test data
-                y_pred = result.get('y_test_pred')
-                y_test = result.get('y_test')
-                
-                if y_pred is None or y_test is None:
-                    print(f"  Warning: Missing data for {model}")
-                    continue
-                
-                # Store base metrics (overall performance)
-                base_mae = result['mae']
-                base_rmse = result['rmse']
-                base_r2 = result['r2']
-                base_nrmse = result.get('nrmse', compute_nrmse(y_test.flatten(), y_pred.flatten()))
+                # Extract metrics
+                mae = result['mae']
+                rmse = result['rmse']
+                r2 = result['r2']
+                nrmse = result.get('nrmse', compute_nrmse(result['y_test'].flatten(), result['y_test_pred'].flatten()))
                 train_time = result['train_time']
                 test_samples = result['test_samples']
                 
-                # Store base result
+                # Store result
                 all_results.append({
                     'plant_id': plant_id,
                     'model': model,
-                    'hour': 'Overall',
-                    'mae': base_mae,
-                    'rmse': base_rmse,
-                    'r2': base_r2,
-                    'nrmse': base_nrmse,
+                    'window_type': 'hourly_sliding',
+                    'mae': mae,
+                    'rmse': rmse,
+                    'r2': r2,
+                    'nrmse': nrmse,
                     'train_time': train_time,
-                    'samples': test_samples
+                    'test_samples': test_samples,
+                    'total_windows': len(result.get('y_test', []))
                 })
-                
-                # Group test results by hour
-                # y_test and y_pred are (n_samples, 24) for daily windows
-                for hour_idx in range(24):
-                    y_true_hour = y_test[:, hour_idx].flatten()
-                    y_pred_hour = y_pred[:, hour_idx].flatten()
-                    
-                    # Compute metrics
-                    mae = np.mean(np.abs(y_true_hour - y_pred_hour))
-                    rmse = np.sqrt(np.mean((y_true_hour - y_pred_hour) ** 2))
-                    
-                    # R2
-                    ss_res = np.sum((y_true_hour - y_pred_hour) ** 2)
-                    ss_tot = np.sum((y_true_hour - np.mean(y_true_hour)) ** 2)
-                    r2 = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
-                    
-                    # NRMSE
-                    nrmse = compute_nrmse(y_true_hour, y_pred_hour)
-                    
-                    # Store result
-                    all_results.append({
-                        'plant_id': plant_id,
-                        'model': model,
-                        'hour': hour_idx,
-                        'mae': mae,
-                        'rmse': rmse,
-                        'r2': r2,
-                        'nrmse': nrmse,
-                        'train_time': result.get('train_time', 0),
-                        'samples': len(y_true_hour)
-                    })
-                
+
             except Exception as e:
                 print(f"  Error running {model}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
     
     # Convert to DataFrame
@@ -176,19 +143,18 @@ def run_hourly_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity_a
     
     print(f"\nTotal results: {len(results_df)}")
     
-    # Aggregate results by hour and model
+    # Aggregate results by model
     print("\n" + "=" * 80)
     print("Aggregating results across plants...")
     print("=" * 80)
     
-    # Group by hour and model
-    grouped = results_df.groupby(['hour', 'model'])
+    # Group by model
+    grouped = results_df.groupby('model')
     
     # Compute mean and std
     agg_results = []
-    for (hour, model), group in grouped:
+    for model, group in grouped:
         agg_results.append({
-            'hour': hour,
             'model': model,
             'mae_mean': group['mae'].mean(),
             'mae_std': group['mae'].std(),
@@ -200,6 +166,7 @@ def run_hourly_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity_a
             'nrmse_std': group['nrmse'].std(),
             'train_time_mean': group['train_time'].mean(),
             'train_time_std': group['train_time'].std(),
+            'avg_windows': group['total_windows'].mean(),
             'n_plants': len(group)
         })
     
@@ -207,44 +174,35 @@ def run_hourly_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity_a
     
     # Round to 2 decimals
     for col in agg_df.columns:
-        if col not in ['hour', 'model', 'n_plants']:
-            agg_df[col] = agg_df[col].round(2)    # Create formatted pivot tables with mean±std format
-    formatted_pivots = create_formatted_pivot(agg_df, 'hour', ['mae', 'rmse', 'r2', 'nrmse', 'train_time'])
+        if col not in ['model', 'n_plants', 'avg_windows']:
+            agg_df[col] = agg_df[col].round(2)
     
     # Save results with model ordering and local backup
     os.makedirs(output_dir, exist_ok=True)
     
     # Save detailed results
-    output_file_detailed = os.path.join(output_dir, 'hourly_effect_detailed.csv')
-    save_results(results_df, output_file_detailed, local_output_dir, 'hourly_effect')
+    output_file_detailed = os.path.join(output_dir, 'dataset_extension_detailed.csv')
+    save_results(results_df, output_file_detailed, local_output_dir, 'dataset_extension')
     
     # Save aggregated results
-    output_file_agg = os.path.join(output_dir, 'hourly_effect_aggregated.csv')
-    save_results(agg_df, output_file_agg, local_output_dir, 'hourly_effect')
-    
-    # Save formatted pivot tables for each metric
-    for metric, pivot_df in formatted_pivots.items():
-        output_file_pivot = os.path.join(output_dir, f'hourly_effect_pivot_{metric}.csv')
-        save_results(pivot_df, output_file_pivot, local_output_dir, 'hourly_effect')
+    output_file_agg = os.path.join(output_dir, 'dataset_extension_aggregated.csv')
+    save_results(agg_df, output_file_agg, local_output_dir, 'dataset_extension')
     
     # Print summary
     print("\n" + "=" * 80)
-    print("Summary (MAE by hour for first 3 models):")
+    print("Summary (Hourly Sliding Windows):")
     print("=" * 80)
-    summary = agg_df[agg_df['model'].isin(['LSTM', 'RF', 'Linear'])].pivot(
-        index='hour', columns='model', values='mae_mean'
-    )
-    print(summary.head(10))
+    print(agg_df[['model', 'mae_mean', 'mae_std', 'rmse_mean', 'rmse_std', 'r2_mean', 'r2_std', 'avg_windows']])
     
     print("\n" + "=" * 80)
-    print("Hourly Effect Analysis Complete!")
+    print("Dataset Extension Analysis Complete!")
     print("=" * 80)
 
 
 if __name__ == '__main__':
     import argparse
     
-    parser = argparse.ArgumentParser(description='Sensitivity Analysis: Hourly Effect')
+    parser = argparse.ArgumentParser(description='Sensitivity Analysis: Dataset Extension (Hourly Sliding Windows)')
     parser.add_argument('--data-dir', type=str, default='data',
                        help='Directory containing plant CSV files')
     parser.add_argument('--output-dir', type=str, default='sensitivity_analysis/results',
@@ -254,5 +212,5 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    run_hourly_analysis(data_dir=args.data_dir, output_dir=args.output_dir, local_output_dir=args.local_output)
+    run_dataset_extension_analysis(data_dir=args.data_dir, output_dir=args.output_dir, local_output_dir=args.local_output)
 

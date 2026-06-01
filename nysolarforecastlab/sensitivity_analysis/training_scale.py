@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Sensitivity Analysis Experiment 3: Weather Feature Adoption
+Sensitivity Analysis Experiment 6: Training Dataset Scale
 
-Analyze model performance with different weather feature tiers
+Analyze model performance with different training data scales
 - Models: 7 models (LSTM, GRU, Transformer, TCN, RF, XGB, LGBM) + Linear (NWP only)
 - Configuration: PV+NWP, 24-hour lookback, no TE, high complexity
-- Feature tiers:
-  * SI: Solar Irradiance only (1 feature: global_tilted_irradiance)
-  * H: High correlation (3 features: SI + vapour_pressure_deficit + relative_humidity_2m)
-  * H+M: High + Medium (7 features: H + temperature_2m + wind_gusts_10m + cloud_cover_low + wind_speed_100m)
-  * H+M+L: All features (11 features: H+M + snow_depth + dew_point_2m + surface_pressure + precipitation)
+- Training scales: Low (20%), Medium (40%), High (60%), Full (80%)
 - Metrics: MAE, RMSE, R2, NRMSE, train_time (mean and std across 100 plants)
 """
 
@@ -21,9 +17,9 @@ import numpy as np
 from tqdm import tqdm
 
 # Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from sensitivity_analysis.common_utils import (
+from nysolarforecastlab.sensitivity_analysis.common_utils import (
     DL_MODELS, ML_MODELS, ALL_MODELS_NO_LINEAR,
     compute_nrmse,
     create_base_config,
@@ -33,34 +29,35 @@ from sensitivity_analysis.common_utils import (
     set_global_seed,
     load_and_filter_data
 )
-from data.data_utils import preprocess_features, create_daily_windows, split_data
+from nysolarforecastlab.data.data_utils import preprocess_features
 
 
-# Feature tier definitions
-FEATURE_TIERS = {
-    'SI': 'solar_irradiance_only',
-    'H': 'high_weather',
-    'H+M': 'medium_weather',  # 7 features: high + medium
-    'H+M+L': 'low_weather'    # 11 features: high + medium + low
+# Training scales to test
+TRAINING_SCALES = {
+    'Low': 0.2,
+    'Medium': 0.4,
+    'High': 0.6,
+    'Full': 0.8
 }
 
 
-def run_weather_feature_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity_analysis/results', local_output_dir: str = None):
+def run_training_scale_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity_analysis/results', local_output_dir: str = None):
     """
-    Run weather feature adoption analysis across all plants
+    Run training scale analysis across all plants
     
     Args:
         data_dir: Directory containing plant CSV files
         output_dir: Directory to save results
     """
     print("=" * 80)
-    print("Sensitivity Analysis Experiment 3: Weather Feature Adoption")
+    print("Sensitivity Analysis Experiment 6: Training Dataset Scale")
     print("=" * 80)
     
+
     # Set global random seed for reproducibility
     set_global_seed(42)
-    
-    # Load all plant configurations
+
+        # Load all plant configurations
     plant_configs = load_all_plant_configs(data_dir)
     print(f"\nLoaded {len(plant_configs)} plant configurations")
     
@@ -90,9 +87,9 @@ def run_weather_feature_analysis(data_dir: str = 'data', output_dir: str = 'sens
             print(f"Error loading data: {e}")
             continue
         
-        # Run experiments for each model and feature tier
+        # Run experiments for each model and training scale
         for model in tqdm(models_to_test, desc=f"Plant {plant_id}"):
-            for tier_name, tier_category in FEATURE_TIERS.items():
+            for scale_name, train_ratio in TRAINING_SCALES.items():
                 # Create configuration
                 if model == 'Linear':
                     # Linear model: NWP only (no PV, no lookback)
@@ -107,19 +104,23 @@ def run_weather_feature_analysis(data_dir: str = 'data', output_dir: str = 'sens
                     config = create_base_config(plant_config, model, complexity='high', 
                                               lookback=24, use_te=False)
                 
-                # Set weather category
-                config['weather_category'] = tier_category
+                # Set training ratio
+                config['train_ratio'] = train_ratio
+                # Adjust val/test ratio to maintain same test size
+                remaining = 1.0 - train_ratio
+                config['val_ratio'] = 0.1
+                config['test_ratio'] = remaining - 0.1
                 
                 try:
-                    # Run experiment using the corrected function
+                    # Train and evaluate
                     result = run_single_experiment(config, df.copy(), use_sliding_windows=False)
                     
                     # Check if experiment succeeded
                     if result['status'] != 'SUCCESS':
-                        print(f"  Error running {model} - {tier_name}: {result.get('error', 'Unknown error')}")
+                        print(f"  Error running {model}: {result.get('error', 'Unknown error')}")
                         continue
                     
-                    # Extract metrics directly from result (same as lookback_window.py)
+                    # Extract metrics
                     mae = result['mae']
                     rmse = result['rmse']
                     r2 = result['r2']
@@ -131,17 +132,17 @@ def run_weather_feature_analysis(data_dir: str = 'data', output_dir: str = 'sens
                     all_results.append({
                         'plant_id': plant_id,
                         'model': model,
-                        'feature_tier': tier_name,
+                        'training_scale': scale_name,
                         'mae': mae,
                         'rmse': rmse,
                         'r2': r2,
                         'nrmse': nrmse,
                         'train_time': train_time,
-                        'samples': test_samples
+                        'test_samples': test_samples
                     })
-                    
+
                 except Exception as e:
-                    print(f"  Error running {model} - {tier_name}: {e}")
+                    print(f"  Error running {model} - {scale_name}: {e}")
                     continue
     
     # Convert to DataFrame
@@ -153,19 +154,19 @@ def run_weather_feature_analysis(data_dir: str = 'data', output_dir: str = 'sens
     
     print(f"\nTotal results: {len(results_df)}")
     
-    # Aggregate results by feature tier and model
+    # Aggregate results
     print("\n" + "=" * 80)
     print("Aggregating results across plants...")
     print("=" * 80)
     
-    # Group by feature_tier and model
-    grouped = results_df.groupby(['feature_tier', 'model'])
+    # Group by training_scale and model
+    grouped = results_df.groupby(['training_scale', 'model'])
     
     # Compute mean and std
     agg_results = []
-    for (tier, model), group in grouped:
+    for (scale, model), group in grouped:
         agg_results.append({
-            'feature_tier': tier,
+            'training_scale': scale,
             'model': model,
             'mae_mean': group['mae'].mean(),
             'mae_std': group['mae'].std(),
@@ -184,49 +185,53 @@ def run_weather_feature_analysis(data_dir: str = 'data', output_dir: str = 'sens
     
     # Round to 2 decimals
     for col in agg_df.columns:
-        if col not in ['feature_tier', 'model', 'n_plants']:
+        if col not in ['training_scale', 'model', 'n_plants']:
             agg_df[col] = agg_df[col].round(2)
     
-    # Order feature tiers
-    tier_order = ['SI', 'H', 'H+M', 'H+M+L']
-    agg_df['feature_tier'] = pd.Categorical(agg_df['feature_tier'], categories=tier_order, ordered=True)
-    agg_df = agg_df.sort_values(['feature_tier', 'model'])
+    # Order training scales
+    scale_order = ['Low', 'Medium', 'High', 'Full']
+    agg_df['training_scale'] = pd.Categorical(
+        agg_df['training_scale'], 
+        categories=scale_order, 
+        ordered=True
+    )
+    agg_df = agg_df.sort_values(['training_scale', 'model'])
     
     # Create formatted pivot tables with mean±std format
-    formatted_pivots = create_formatted_pivot(agg_df, 'feature_tier', ['mae', 'rmse', 'r2', 'nrmse', 'train_time'])
+    formatted_pivots = create_formatted_pivot(agg_df, 'training_scale', ['mae', 'rmse', 'r2', 'nrmse', 'train_time'])
     
-    # Save results
+    # Save results with model ordering and local backup
     os.makedirs(output_dir, exist_ok=True)
     
     # Save detailed results
-    output_file_detailed = os.path.join(output_dir, 'weather_feature_adoption_detailed.csv')
-    save_results(results_df, output_file_detailed, local_output_dir, 'weather_feature_adoption')
+    output_file_detailed = os.path.join(output_dir, 'training_scale_detailed.csv')
+    save_results(results_df, output_file_detailed, local_output_dir, 'training_scale')
     
     # Save aggregated results
-    output_file_agg = os.path.join(output_dir, 'weather_feature_adoption_aggregated.csv')
-    save_results(agg_df, output_file_agg, local_output_dir, 'weather_feature_adoption')
+    output_file_agg = os.path.join(output_dir, 'training_scale_aggregated.csv')
+    save_results(agg_df, output_file_agg, local_output_dir, 'training_scale')
     
     # Save formatted pivot tables for each metric
     for metric, pivot_df in formatted_pivots.items():
-        output_file_pivot = os.path.join(output_dir, f'weather_feature_adoption_pivot_{metric}.csv')
-        save_results(pivot_df, output_file_pivot, local_output_dir, 'weather_feature_adoption')
+        output_file_pivot = os.path.join(output_dir, f'training_scale_pivot_{metric}.csv')
+        save_results(pivot_df, output_file_pivot, local_output_dir, 'training_scale')
     
     # Print summary
     print("\n" + "=" * 80)
-    print("Summary (MAE by feature tier and model):")
+    print("Summary (MAE by training scale and model):")
     print("=" * 80)
-    summary = agg_df.pivot(index='feature_tier', columns='model', values='mae_mean')
+    summary = agg_df.pivot(index='training_scale', columns='model', values='mae_mean')
     print(summary)
     
     print("\n" + "=" * 80)
-    print("Weather Feature Adoption Analysis Complete!")
+    print("Training Scale Analysis Complete!")
     print("=" * 80)
 
 
 if __name__ == '__main__':
     import argparse
     
-    parser = argparse.ArgumentParser(description='Sensitivity Analysis: Weather Feature Adoption')
+    parser = argparse.ArgumentParser(description='Sensitivity Analysis: Training Dataset Scale')
     parser.add_argument('--data-dir', type=str, default='data',
                        help='Directory containing plant CSV files')
     parser.add_argument('--output-dir', type=str, default='sensitivity_analysis/results',
@@ -236,5 +241,5 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    run_weather_feature_analysis(data_dir=args.data_dir, output_dir=args.output_dir, local_output_dir=args.local_output)
+    run_training_scale_analysis(data_dir=args.data_dir, output_dir=args.output_dir, local_output_dir=args.local_output)
 

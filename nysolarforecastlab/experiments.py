@@ -19,14 +19,15 @@ warnings.filterwarnings('ignore')
 os.environ['PYTHONWARNINGS'] = 'ignore'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
+package_dir = os.path.dirname(os.path.abspath(__file__))
+script_dir = os.path.dirname(package_dir)
 os.chdir(script_dir)
 sys.path.append(script_dir)
 
-from config.config_manager import PlantConfigManager
-from data.data_utils import preprocess_features, create_daily_windows, split_data
-from train.train_dl import train_dl_model
-from train.train_ml import train_ml_model
+from nysolarforecastlab.config.config_manager import PlantConfigManager
+from nysolarforecastlab.data.data_utils import preprocess_features, create_daily_windows, split_data
+from nysolarforecastlab.train.train_dl import train_dl_model
+from nysolarforecastlab.train.train_ml import train_ml_model
 
 
 def get_result_file_path(output_dir: str, plant_id: str) -> str:
@@ -61,7 +62,7 @@ def find_latest_result_file(output_dir: str, plant_id: str) -> Optional[str]:
 
 # Import sensitivity analysis utilities
 try:
-    from sensitivity_analysis.common_utils import set_global_seed
+    from nysolarforecastlab.sensitivity_analysis.common_utils import set_global_seed
 except ImportError:
     def set_global_seed(seed=42):
         import random
@@ -284,7 +285,7 @@ def run_forecast_experiments(plant_id: str = '171', output_dir: Optional[str] = 
     
     print(f"Total configurations generated: {len(configs)}")
     
-    from utils.gpu_utils import get_device_description
+    from nysolarforecastlab.utils.gpu_utils import get_device_description
     print(f"Device: {get_device_description()}")
     
     # Set output directory
@@ -501,7 +502,7 @@ def batch_create_configs(data_dir: str = 'data', config_dir: str = 'config/plant
     csv_files = glob.glob(os.path.join(data_dir, '*.csv'))
     os.makedirs(config_dir, exist_ok=True)
     
-    template_path = os.path.join(script_dir, 'config', 'plant_template.yaml')
+    template_path = os.path.join(package_dir, 'config', 'plant_template.yaml')
     with open(template_path, 'r') as f:
         template = yaml.safe_load(f)
     
@@ -652,7 +653,7 @@ def run_plant_experiments(plant_config_path: str, resume: bool = True, output_di
         df = df[df['Datetime'] <= end_dt].copy()
         print(f"  Data filtered: End date = {end_date} ({len(df)} rows remain)")
     
-    from utils.gpu_utils import get_device_description
+    from nysolarforecastlab.utils.gpu_utils import get_device_description
     print(f"Device: {get_device_description()}")
     
     output_file = get_result_file_path(output_dir, plant_id)
@@ -686,7 +687,7 @@ def run_plant_experiments(plant_config_path: str, resume: bool = True, output_di
         print(f"Created new result file: {output_file}")
     
     # Use run_single_experiment from run_experiments_multi_plant.py logic
-    from data.data_utils import preprocess_features, create_daily_windows
+    from nysolarforecastlab.data.data_utils import preprocess_features, create_daily_windows
     
     def run_single_experiment_multi_plant(config: Dict, df: pd.DataFrame) -> Dict:
         """Run single experiment (multi-plant version)"""

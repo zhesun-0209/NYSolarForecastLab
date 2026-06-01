@@ -1,14 +1,14 @@
 Models
 ======
 
-.. automodule:: models.rnn_models
+.. automodule:: nysolarforecastlab.models.rnn_models
    :members:
 
-.. automodule:: models.transformer
+.. automodule:: nysolarforecastlab.models.transformer
    :members:
 
-.. automodule:: models.tcn
+.. automodule:: nysolarforecastlab.models.tcn
    :members:
 
-.. automodule:: models.ml_models
+.. automodule:: nysolarforecastlab.models.ml_models
    :members:

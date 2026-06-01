@@ -7,6 +7,5 @@ API Reference
    models
    data
    train
-   eval
+   evaluation
    utils
-

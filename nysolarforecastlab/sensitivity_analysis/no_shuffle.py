@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Sensitivity Analysis Experiment 8: Dataset Extension (Hourly Sliding Windows)
+Sensitivity Analysis Experiment 7: No Shuffle Training
 
-Analyze model performance with hourly sliding windows (vs. daily windows)
+Analyze model performance with sequential (non-shuffled) data splitting
 - Models: 7 models (LSTM, GRU, Transformer, TCN, RF, XGB, LGBM) + Linear (NWP only)
 - Configuration: PV+NWP, 24-hour lookback, no TE, high complexity
-- Window type: Hourly sliding windows (creates ~24x more samples than daily windows)
-- Current: Daily windows predict 0-23 hours starting from 23:00 each day
-- New: Hourly windows can predict from any hour (e.g., 1-0, 2-1, etc.)
+- Data split: Sequential (no shuffle) - preserves temporal order
 - Metrics: MAE, RMSE, R2, NRMSE, train_time (mean and std across 100 plants)
 """
 
@@ -19,9 +17,9 @@ import numpy as np
 from tqdm import tqdm
 
 # Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from sensitivity_analysis.common_utils import (
+from nysolarforecastlab.sensitivity_analysis.common_utils import (
     DL_MODELS, ML_MODELS, ALL_MODELS_NO_LINEAR,
     compute_nrmse,
     create_base_config,
@@ -31,20 +29,19 @@ from sensitivity_analysis.common_utils import (
     set_global_seed,
     load_and_filter_data
 )
-from data.data_utils import preprocess_features, create_sliding_windows, split_data
+from nysolarforecastlab.data.data_utils import preprocess_features
 
 
-def run_dataset_extension_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity_analysis/results', local_output_dir: str = None):
+def run_no_shuffle_analysis(data_dir: str = 'data', output_dir: str = 'sensitivity_analysis/results', local_output_dir: str = None):
     """
-    Run dataset extension analysis across all plants
-    Using hourly sliding windows instead of daily windows
+    Run no-shuffle analysis across all plants (tests sequential data splitting)
     
     Args:
         data_dir: Directory containing plant CSV files
         output_dir: Directory to save results
     """
     print("=" * 80)
-    print("Sensitivity Analysis Experiment 8: Dataset Extension (Hourly Sliding Windows)")
+    print("Sensitivity Analysis Experiment 7: No Shuffle Training")
     print("=" * 80)
     
 
@@ -97,9 +94,12 @@ def run_dataset_extension_analysis(data_dir: str = 'data', output_dir: str = 'se
                 config = create_base_config(plant_config, model, complexity='high', 
                                           lookback=24, use_te=False)
             
+            # Set shuffle_split to False for this experiment (testing no shuffle / sequential split)
+            config['shuffle_split'] = False
+            
             try:
-                # Run experiment using corrected function
-                result = run_single_experiment(config, df.copy(), use_sliding_windows=True)
+                # Train and evaluate
+                result = run_single_experiment(config, df.copy(), use_sliding_windows=False)
                 
                 # Check if experiment succeeded
                 if result['status'] != 'SUCCESS':
@@ -118,20 +118,16 @@ def run_dataset_extension_analysis(data_dir: str = 'data', output_dir: str = 'se
                 all_results.append({
                     'plant_id': plant_id,
                     'model': model,
-                    'window_type': 'hourly_sliding',
                     'mae': mae,
                     'rmse': rmse,
                     'r2': r2,
                     'nrmse': nrmse,
                     'train_time': train_time,
-                    'test_samples': test_samples,
-                    'total_windows': len(result.get('y_test', []))
+                    'test_samples': test_samples
                 })
 
             except Exception as e:
                 print(f"  Error running {model}: {e}")
-                import traceback
-                traceback.print_exc()
                 continue
     
     # Convert to DataFrame
@@ -166,7 +162,6 @@ def run_dataset_extension_analysis(data_dir: str = 'data', output_dir: str = 'se
             'nrmse_std': group['nrmse'].std(),
             'train_time_mean': group['train_time'].mean(),
             'train_time_std': group['train_time'].std(),
-            'avg_windows': group['total_windows'].mean(),
             'n_plants': len(group)
         })
     
@@ -174,35 +169,35 @@ def run_dataset_extension_analysis(data_dir: str = 'data', output_dir: str = 'se
     
     # Round to 2 decimals
     for col in agg_df.columns:
-        if col not in ['model', 'n_plants', 'avg_windows']:
+        if col not in ['model', 'n_plants']:
             agg_df[col] = agg_df[col].round(2)
     
     # Save results with model ordering and local backup
     os.makedirs(output_dir, exist_ok=True)
     
     # Save detailed results
-    output_file_detailed = os.path.join(output_dir, 'dataset_extension_detailed.csv')
-    save_results(results_df, output_file_detailed, local_output_dir, 'dataset_extension')
+    output_file_detailed = os.path.join(output_dir, 'no_shuffle_detailed.csv')
+    save_results(results_df, output_file_detailed, local_output_dir, 'no_shuffle')
     
     # Save aggregated results
-    output_file_agg = os.path.join(output_dir, 'dataset_extension_aggregated.csv')
-    save_results(agg_df, output_file_agg, local_output_dir, 'dataset_extension')
+    output_file_agg = os.path.join(output_dir, 'no_shuffle_aggregated.csv')
+    save_results(agg_df, output_file_agg, local_output_dir, 'no_shuffle')
     
     # Print summary
     print("\n" + "=" * 80)
-    print("Summary (Hourly Sliding Windows):")
+    print("Summary (No Shuffle - Sequential Split):")
     print("=" * 80)
-    print(agg_df[['model', 'mae_mean', 'mae_std', 'rmse_mean', 'rmse_std', 'r2_mean', 'r2_std', 'avg_windows']])
+    print(agg_df[['model', 'mae_mean', 'mae_std', 'rmse_mean', 'rmse_std', 'r2_mean', 'r2_std']])
     
     print("\n" + "=" * 80)
-    print("Dataset Extension Analysis Complete!")
+    print("No Shuffle Analysis Complete!")
     print("=" * 80)
 
 
 if __name__ == '__main__':
     import argparse
     
-    parser = argparse.ArgumentParser(description='Sensitivity Analysis: Dataset Extension (Hourly Sliding Windows)')
+    parser = argparse.ArgumentParser(description='Sensitivity Analysis: No Shuffle Training')
     parser.add_argument('--data-dir', type=str, default='data',
                        help='Directory containing plant CSV files')
     parser.add_argument('--output-dir', type=str, default='sensitivity_analysis/results',
@@ -212,5 +207,5 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    run_dataset_extension_analysis(data_dir=args.data_dir, output_dir=args.output_dir, local_output_dir=args.local_output)
+    run_no_shuffle_analysis(data_dir=args.data_dir, output_dir=args.output_dir, local_output_dir=args.local_output)
 

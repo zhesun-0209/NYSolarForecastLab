@@ -11,7 +11,7 @@ Provides functions for:
 
 import pandas as pd
 import numpy as np
-from utils.normalization import UnifiedScaler
+from nysolarforecastlab.utils.normalization import UnifiedScaler
 
 # Based on actual weather features in data, simplified into two categories
 # Solar irradiance features - most important features

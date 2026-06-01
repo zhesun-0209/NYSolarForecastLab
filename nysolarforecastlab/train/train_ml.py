@@ -9,9 +9,9 @@ warnings.filterwarnings('ignore')
 os.environ['PYTHONWARNINGS'] = 'ignore'
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.linear_model import LinearRegression
-from eval import calculate_metrics, calculate_mse, calculate_daily_avg_metrics
-from utils.gpu_utils import clear_gpu_memory, get_gpu_memory_used
-from models.ml_models import train_rf, train_xgb, train_lgbm, train_linear
+from nysolarforecastlab.evaluation import calculate_metrics, calculate_mse, calculate_daily_avg_metrics
+from nysolarforecastlab.utils.gpu_utils import clear_gpu_memory, get_gpu_memory_used
+from nysolarforecastlab.models.ml_models import train_rf, train_xgb, train_lgbm, train_linear
 
 def train_ml_model(
     config: dict,
@@ -175,7 +175,7 @@ def train_ml_model(
     nrmse = daily_metrics['nrmse']
     
     # Also extract 24h-ahead predictions for saving to CSV (for visualization)
-    from eval import extract_one_hour_ahead_predictions
+    from nysolarforecastlab.evaluation import extract_one_hour_ahead_predictions
     final_preds_24h, final_gt_24h = extract_one_hour_ahead_predictions(p_matrix, y_matrix)
 
     # Get GPU memory usage

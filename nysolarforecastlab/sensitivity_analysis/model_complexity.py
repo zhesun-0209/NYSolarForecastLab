@@ -21,9 +21,9 @@ import numpy as np
 from tqdm import tqdm
 
 # Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from sensitivity_analysis.common_utils import (
+from nysolarforecastlab.sensitivity_analysis.common_utils import (
     DL_MODELS, ML_MODELS, ALL_MODELS_NO_LINEAR,
     compute_nrmse,
     load_all_plant_configs,
@@ -32,7 +32,7 @@ from sensitivity_analysis.common_utils import (
     set_global_seed,
     load_and_filter_data
 )
-from data.data_utils import preprocess_features
+from nysolarforecastlab.data.data_utils import preprocess_features
 
 
 # Complexity levels
@@ -44,7 +44,7 @@ def create_complexity_config(plant_config, model, complexity, lookback=24, use_t
     Create configuration with specific complexity level
     Uses plant_config parameters (same as multi_plant) to ensure consistency
     """
-    from sensitivity_analysis.common_utils import create_base_config
+    from nysolarforecastlab.sensitivity_analysis.common_utils import create_base_config
     
     # Use create_base_config to ensure consistency with multi_plant
     # This reads parameters from plant_config (same as multi_plant)

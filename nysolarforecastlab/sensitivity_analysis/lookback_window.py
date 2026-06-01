@@ -17,9 +17,9 @@ import numpy as np
 from tqdm import tqdm
 
 # Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from sensitivity_analysis.common_utils import (
+from nysolarforecastlab.sensitivity_analysis.common_utils import (
     DL_MODELS, ML_MODELS, ALL_MODELS_NO_LINEAR,
     compute_nrmse,
     create_base_config,
@@ -29,7 +29,7 @@ from sensitivity_analysis.common_utils import (
     set_global_seed,
     load_and_filter_data
 )
-from data.data_utils import preprocess_features, create_daily_windows, split_data
+from nysolarforecastlab.data.data_utils import preprocess_features, create_daily_windows, split_data
 
 
 # Lookback windows to test

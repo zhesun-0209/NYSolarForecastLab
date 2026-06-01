@@ -6,7 +6,7 @@ Unit tests for data utilities
 import pytest
 import pandas as pd
 import numpy as np
-from data.data_utils import (
+from nysolarforecastlab.data.data_utils import (
     load_raw_data,
     preprocess_features,
     create_daily_windows,

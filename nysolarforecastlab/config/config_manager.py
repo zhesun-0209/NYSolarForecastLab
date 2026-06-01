@@ -11,19 +11,23 @@ Supports:
 import yaml
 import os
 from typing import Dict, List
+from pathlib import Path
+
+
+PACKAGE_TEMPLATE_PATH = Path(__file__).with_name("plant_template.yaml")
 
 
 class PlantConfigManager:
     """Plant Configuration Manager"""
     
-    def __init__(self, template_path: str = "config/plant_template.yaml"):
+    def __init__(self, template_path: str = None):
         """
         Initialize configuration manager
         
         Args:
             template_path: Template configuration file path
         """
-        self.template_path = template_path
+        self.template_path = str(template_path or PACKAGE_TEMPLATE_PATH)
         self.template_config = self._load_template()
     
     def _load_template(self) -> Dict:
@@ -491,4 +495,3 @@ if __name__ == "__main__":
     else:
         print(f"Unknown command: {command}")
         sys.exit(1)
-

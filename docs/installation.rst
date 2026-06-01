@@ -23,13 +23,19 @@ Installation Steps
 
 .. code-block:: bash
 
-   pip install -r requirements.txt
+   python -m pip install -r requirements.txt
 
 For documentation and test tooling:
 
 .. code-block:: bash
 
-   pip install -r requirements-dev.txt
+   python -m pip install -r requirements-dev.txt
+
+Optional editable package install:
+
+.. code-block:: bash
+
+   python -m pip install -e .
 
 3. Verify installation:
 

@@ -5,7 +5,7 @@ Unit tests for normalization utilities
 
 import pytest
 import numpy as np
-from utils.normalization import UnifiedScaler
+from nysolarforecastlab.utils.normalization import UnifiedScaler
 
 
 class TestUnifiedScaler:

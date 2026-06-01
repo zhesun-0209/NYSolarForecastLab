@@ -25,10 +25,10 @@ def register_model(name: str):
 
 
 # Import all models to register them
-from models.rnn_models import LSTM, GRU
-from models.transformer import Transformer
-from models.tcn import TCNModel
-from models.ml_models import train_rf, train_xgb, train_lgbm, train_linear
+from nysolarforecastlab.models.rnn_models import LSTM, GRU
+from nysolarforecastlab.models.transformer import Transformer
+from nysolarforecastlab.models.tcn import TCNModel
+from nysolarforecastlab.models.ml_models import train_rf, train_xgb, train_lgbm, train_linear
 
 # Register models
 MODEL_REGISTRY['LSTM'] = LSTM

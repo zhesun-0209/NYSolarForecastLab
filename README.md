@@ -5,18 +5,15 @@
 [![Data](https://img.shields.io/badge/data-10.7910%2FDVN%2F3VKAGM-green)](https://doi.org/10.7910/DVN/3VKAGM)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
-Reference implementation and benchmark utilities for:
+Reference implementation for the day-ahead photovoltaic (PV) power forecasting benchmark in:
 
 **Toward better integration of solar energy in transportation systems: machine learning benchmarks for day-ahead photovoltaic power forecasting**
 
-Zhaoyao Bao, Zhe Sun, Yishuo Jiang, Chi Xie, Lijun Sun, and H. Oliver Gao
+Zhaoyao Bao, Zhe Sun, Yishuo Jiang, Chi Xie, Lijun Sun, and H. Oliver Gao. *Transportation Research Part A: Policy and Practice*, 210, 105040, 2026. DOI: [10.1016/j.tra.2026.105040](https://doi.org/10.1016/j.tra.2026.105040).
 
-*Transportation Research Part A: Policy and Practice*, 210, 105040, 2026
-DOI: [10.1016/j.tra.2026.105040](https://doi.org/10.1016/j.tra.2026.105040)
+This repository provides a compact command-line workflow for preparing plant configs, running model benchmarks, resuming interrupted experiments, checking progress, and exporting result CSVs.
 
-This repository supports the paper's day-ahead photovoltaic (PV) forecasting benchmark for transportation energy-management and planning applications. It provides one command-line workflow for preparing plant configs, running model grids, resuming interrupted experiments, checking progress, and exporting comparable result CSVs.
-
-## At A Glance
+## What Is Included
 
 | Item | Details |
 | --- | --- |
@@ -24,27 +21,17 @@ This repository supports the paper's day-ahead photovoltaic (PV) forecasting ben
 | Models | Linear Regression, Random Forest, XGBoost, LightGBM, LSTM, GRU, Transformer, TCN |
 | Inputs | PV, PV+HW, PV+NWP, PV+NWP+, NWP, NWP+ |
 | Full grid | 284 configurations per plant |
-| Included data | Three example benchmark-format plants: 171, 172, 186 |
-| Full data release | [Harvard Dataverse DOI: 10.7910/DVN/3VKAGM](https://doi.org/10.7910/DVN/3VKAGM) |
-| Main entry point | `python run.py ...` |
+| Example data | Plants 171, 172, and 186 in `data/` |
+| Full data | [Harvard Dataverse DOI: 10.7910/DVN/3VKAGM](https://doi.org/10.7910/DVN/3VKAGM) |
+| Main command | `python run.py ...` |
 
-The committed CSV files are smoke-test fixtures with the same schema as the benchmark data. They let a first-time user verify the code without downloading the full dataset. The paper-scale 100-plant release should be downloaded from Dataverse for full reproduction.
+The GitHub repository includes three example plant files so reviewers can run the code immediately. The paper-scale 100-plant dataset is released separately on Dataverse.
 
-## Workflow
+## Quick Start
 
-```mermaid
-flowchart LR
-    A["Project<ID>.csv<br/>example data or Dataverse release"] --> B["python run.py config"]
-    B --> C["config/plants/Plant<ID>.yaml"]
-    C --> D["python run.py forecast<br/>or python run.py multi_plant"]
-    D --> E["results_<ID>_all.csv"]
-    E --> F["python run.py status"]
-    E --> G["sensitivity_analysis/"]
-```
+Use Python 3.10 or newer. The commands below run only on the included sample data.
 
-## Start Here
-
-Use Python 3.10 or newer.
+1. Install dependencies:
 
 ```bash
 git clone https://github.com/zhesun-0209/NYSolarForecastLab.git
@@ -53,28 +40,42 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Generate plant configuration files for every `data/Project*.csv` file:
+2. Generate plant configuration files:
 
 ```bash
 python run.py config
 ```
 
-Run the fastest smoke test on included Plant 171:
+Expected output:
+
+```text
+config/plants/Plant171.yaml
+config/plants/Plant172.yaml
+config/plants/Plant186.yaml
+```
+
+3. Run a two-row Linear Regression smoke test:
 
 ```bash
-python run.py forecast --plant-id 171 --test-mode --test-model Linear --output-dir results/smoke
+FORCE_CPU=1 python run.py forecast --plant-id 171 --test-mode --test-model Linear --output-dir results/smoke
 python run.py status --output-dir results/smoke
 ```
 
-Expected smoke-test artifact:
+Expected result file:
 
 ```text
 results/smoke/results_171_all.csv
 ```
 
-The smoke CSV should contain two successful Linear Regression rows for the NWP and NWP+ input settings. On Apple Silicon or constrained machines, prefix commands with `FORCE_CPU=1` if PyTorch advertises MPS but a model run fails.
+The smoke CSV should contain two successful rows: `Linear_NWP_noTE` and `Linear_NWP+_noTE`.
 
-Optional visual check of the included example data:
+4. Inspect the smoke result:
+
+```bash
+python -c "import pandas as pd; print(pd.read_csv('results/smoke/results_171_all.csv')[['experiment_name','rmse','status']])"
+```
+
+5. Plot the included example plants:
 
 ```bash
 python examples/plot_monthly_generation.py
@@ -82,101 +83,44 @@ python examples/plot_monthly_generation.py
 
 This writes `figures/example_monthly_generation.png`.
 
-## Full Benchmark Runs
+## Common Commands
 
-Run the complete 284-configuration grid for one plant:
+| Goal | Command |
+| --- | --- |
+| Show CLI help | `python run.py --help` |
+| Regenerate configs | `python run.py config` |
+| Single-plant full grid | `python run.py forecast --plant-id 171 --output-dir results/plant171` |
+| Three included plants | `python run.py multi_plant --plants 171 172 186 --output-dir results/sample_plants` |
+| Check progress | `python run.py status --output-dir results/sample_plants` |
+| Run one sensitivity analysis | `python run.py sensitivity --analysis lookback_window` |
 
-```bash
-python run.py forecast --plant-id 171 --output-dir results/plant171
-```
+The runner appends one row after each configuration. Interrupted runs can be resumed. Rows with `status=FAILED` remain in the CSV for auditability and are not counted as completed.
 
-Run multiple configured plants:
+## Full Data
 
-```bash
-python run.py multi_plant --plants 171 172 186 --output-dir results/sample_plants
-python run.py status --output-dir results/sample_plants
-```
-
-To run the full Dataverse release, download the `Project<ID>.csv` files from [10.7910/DVN/3VKAGM](https://doi.org/10.7910/DVN/3VKAGM), place them under `data/`, regenerate configs, and run:
+Download the full 100-plant release from [10.7910/DVN/3VKAGM](https://doi.org/10.7910/DVN/3VKAGM), place the `Project<ID>.csv` files under `data/`, then run:
 
 ```bash
 python run.py config
 python run.py multi_plant --output-dir results/full_release
 ```
 
-The experiment runner appends one row after each configuration, so interrupted runs can be resumed. Rows with `status=FAILED` are reported in the CSV and are not counted as completed by `status`.
-
-## Result Files
-
-Each plant writes one summary CSV:
-
-```text
-results_<plant_id>_all.csv
-```
-
-Important columns:
-
-| Column | Meaning |
-| --- | --- |
-| `experiment_name` | Unique model/input/lookback/time-encoding configuration |
-| `model`, `complexity` | Forecasting method and low/high setting |
-| `feature_combo` or `scenario` | Input setting such as PV+NWP or NWP+ |
-| `lookback_hours` | Historical window length |
-| `use_time_encoding` | Whether cyclic calendar/hour features are used |
-| `mae`, `rmse`, `r2`, `nrmse` | Test-set metrics on inverse-transformed capacity factor |
-| `train_time_sec` | Wall-clock training time |
-| `test_samples` | Number of evaluated hourly targets |
-| `status`, `error` | Success/failure bookkeeping for resume and audit |
-
-## Data And Usage Terms
-
-The paper's data availability statement identifies this GitHub repository as the code release and Harvard Dataverse as the full data release:
-
-- Code: [https://github.com/zhesun-0209/NYSolarForecastLab](https://github.com/zhesun-0209/NYSolarForecastLab)
-- Full 100-plant dataset: [https://doi.org/10.7910/DVN/3VKAGM](https://doi.org/10.7910/DVN/3VKAGM)
-
-The code is released under the MIT License. The data are provided for non-commercial research use and should be cited together with the paper. See [data/README.md](data/README.md) for schema details and [REPRODUCIBILITY.md](REPRODUCIBILITY.md) for a step-by-step reproduction path.
-
-## Experiment Grid
-
-Each full plant benchmark contains 280 non-Linear configurations plus 4 Linear Regression configurations:
-
-| Component | Values |
-| --- | --- |
-| Deep learning models | LSTM, GRU, Transformer, TCN |
-| Machine-learning models | Random Forest, XGBoost, LightGBM |
-| Baseline | Linear Regression |
-| Complexity | low, high |
-| Lookback | 24 h, 72 h for PV-based inputs; 0 h for NWP-only inputs |
-| Time encoding | enabled, disabled |
-| Input sets | PV, PV+HW, PV+NWP, PV+NWP+, NWP, NWP+ |
-
-## Sensitivity Analyses
-
-```bash
-python run.py sensitivity --analysis lookback_window
-python run.py sensitivity --analysis model_complexity
-python run.py sensitivity --analysis training_scale
-python run.py sensitivity --analysis seasonal_effect
-python run.py sensitivity --analysis hourly_effect
-python run.py sensitivity --analysis weather_feature
-```
+The code is MIT licensed. Dataset access and reuse follow the paper's data availability statement and the Dataverse record; the data are for non-commercial research use and should be cited together with the paper.
 
 ## Repository Layout
 
 ```text
 NYSolarForecastLab/
-├── config/                  # Plant and experiment configuration
-├── data/                    # Example plant CSVs and data documentation
-├── docs/                    # Sphinx documentation
-├── models/                  # Forecasting model implementations
-├── sensitivity_analysis/    # Ablation and sensitivity-analysis scripts
-├── tests/                   # Unit tests and interface smoke tests
-├── train/                   # Training pipelines for DL and ML models
-├── eval.py                  # Metrics and result export helpers
-├── experiments.py           # Experiment grid and batch runners
-└── run.py                   # Command-line entry point
+├── run.py                 # Thin CLI wrapper
+├── nysolarforecastlab/    # Source package: experiments, models, training, evaluation
+├── data/                  # Example plant CSVs and schema notes
+├── config/plants/         # Generated plant configs
+├── examples/              # Lightweight plotting helpers
+├── docs/                  # Sphinx documentation
+└── tests/                 # Unit and CLI-facing tests
 ```
+
+For more detail, see [REPRODUCIBILITY.md](REPRODUCIBILITY.md), [data/README.md](data/README.md), and the Sphinx docs in `docs/`.
 
 ## Citation
 

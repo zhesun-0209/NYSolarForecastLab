@@ -6,9 +6,9 @@ Unit tests for model implementations
 import pytest
 import torch
 import numpy as np
-from models.rnn_models import LSTM, GRU
-from models.transformer import Transformer
-from models.tcn import TCNModel
+from nysolarforecastlab.models.rnn_models import LSTM, GRU
+from nysolarforecastlab.models.transformer import Transformer
+from nysolarforecastlab.models.tcn import TCNModel
 
 
 class TestModels:

@@ -57,9 +57,9 @@ import os
 os.environ['LIGHTGBM_VERBOSE'] = '0'
 
 # Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from config.config_manager import PlantConfigManager
+from nysolarforecastlab.config.config_manager import PlantConfigManager
 
 
 def set_global_seed(seed=42):
@@ -91,9 +91,9 @@ def set_global_seed(seed=42):
     
     print(f"Set global random seed: {seed}")
 
-from data.data_utils import load_raw_data, preprocess_features, create_daily_windows, create_sliding_windows, split_data
-from train.train_dl import train_dl_model
-from train.train_ml import train_ml_model
+from nysolarforecastlab.data.data_utils import load_raw_data, preprocess_features, create_daily_windows, create_sliding_windows, split_data
+from nysolarforecastlab.train.train_dl import train_dl_model
+from nysolarforecastlab.train.train_ml import train_ml_model
 import numpy as np
 import pandas as pd
 

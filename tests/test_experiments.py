@@ -3,7 +3,7 @@
 
 import pandas as pd
 
-from experiments import (
+from nysolarforecastlab.experiments import (
     check_plant_completion,
     check_plant_status,
     find_latest_result_file,
